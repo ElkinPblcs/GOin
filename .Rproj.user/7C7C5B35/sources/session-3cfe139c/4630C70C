@@ -1,0 +1,27 @@
+{
+    "id": "4630C70C",
+    "path": "~/Going Scheduler/R/pack.R",
+    "project_path": "R/pack.R",
+    "type": "r_source",
+    "hash": "0",
+    "contents": "",
+    "dirty": false,
+    "created": 1771366849282.0,
+    "source_on_save": false,
+    "relative_order": 9,
+    "properties": {
+        "tempName": "Untitled1",
+        "source_window_id": "",
+        "Source": "Source",
+        "cursorPosition": "54,0",
+        "scrollLine": "0"
+    },
+    "folds": "",
+    "lastKnownWriteTime": 1771366874,
+    "encoding": "UTF-8",
+    "collab_server": "",
+    "source_window": "",
+    "last_content_update": 1771366874851,
+    "read_only": false,
+    "read_only_alternatives": []
+}
