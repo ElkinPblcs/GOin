@@ -13,18 +13,72 @@ server <- function(input, output, session) {
   
   send_gantt <- function(planned) {
     tasks <- planned$tasks %>%
-      mutate(resource_id = trimws(as.character(resource_id)))
+      mutate(
+        resource_id = trimws(as.character(resource_id)),
+        pais = trimws(toupper(as.character(pais)))
+      )
     
+    # 1) filtro colaborador
     sel <- input$filter_resource
     if (!is.null(sel) && sel != "__ALL__") {
       sel <- trimws(as.character(sel))
       tasks <- tasks %>% dplyr::filter(resource_id == sel)
     }
     
+    # 2) filtro país (multi)
+    csel <- input$filter_country
+    if (!is.null(csel) && length(csel) > 0 && !("__ALL__" %in% csel)) {
+      csel <- trimws(toupper(as.character(csel)))
+      tasks <- tasks %>% dplyr::filter(pais %in% csel)
+    }
+    
     session$sendCustomMessage("gantt_data", list(tasks = df_to_rows(tasks)))
   }
   
+  
 
+  # ----------------------------
+  # Tareas filtradas (mismos filtros que el Gantt)
+  # ----------------------------
+  get_tasks_filtered <- reactive({
+    planned <- planned_rv()
+    if (is.null(planned) || is.null(planned$tasks) || nrow(planned$tasks) == 0) {
+      return(NULL)
+    }
+    
+    tasks <- planned$tasks %>%
+      mutate(
+        resource_id = trimws(as.character(resource_id)),
+        resource_name = trimws(as.character(resource_name)),
+        pais = trimws(toupper(as.character(pais))),
+        start_dt = suppressWarnings(as.POSIXct(start_date, format="%Y-%m-%d %H:%M", tz = TZ_LOCAL)),
+        dur_h = suppressWarnings(as.numeric(duration))
+      ) %>%
+      mutate(
+        dur_h = dplyr::if_else(is.na(dur_h) | dur_h <= 0, TASK_FALLBACK_HOURS, dur_h),
+        end_dt = start_dt + lubridate::hours(dur_h)
+      )
+    
+    # 1) filtro colaborador
+    sel <- input$filter_resource
+    if (!is.null(sel) && sel != "__ALL__") {
+      sel <- trimws(as.character(sel))
+      tasks <- tasks %>% dplyr::filter(resource_id == sel)
+    }
+    
+    # 2) filtro país (multi)
+    csel <- input$filter_country
+    if (!is.null(csel) && length(csel) > 0 && !("__ALL__" %in% csel)) {
+      csel <- trimws(toupper(as.character(csel)))
+      tasks <- tasks %>% dplyr::filter(pais %in% csel)
+    }
+    
+    tasks
+  })
+  
+  
+  
+  
 
   
   observeEvent(input$btn_run, {
@@ -94,6 +148,25 @@ server <- function(input, output, session) {
       }
       
       planned_rv(planned)
+      
+      # ======================
+      # choices país (multi)
+      # ======================
+      cc <- planned$tasks %>%
+        mutate(pais = trimws(toupper(as.character(pais)))) %>%
+        filter(!is.na(pais), pais != "") %>%
+        distinct(pais) %>%
+        arrange(pais) %>%
+        pull(pais)
+      
+      country_choices <- c("Todos"="__ALL__", setNames(cc, cc))
+      
+      updateSelectizeInput(
+        session, "filter_country",
+        choices = country_choices,
+        selected = "__ALL__",
+        server = TRUE
+      )
       
       
       res <- planned$resources
@@ -236,6 +309,127 @@ server <- function(input, output, session) {
   }, ignoreInit = TRUE)
   
   
+  observeEvent(input$filter_country, {
+    planned <- planned_rv()
+    if (is.null(planned)) return()
+    send_gantt(planned)
+  }, ignoreInit = TRUE)
+  
+  
+  
+  
+  # ==========================
+  # TAB: Disponibilidad (libre desde)
+  # ==========================
+  output$tbl_free <- renderTable({
+    planned <- planned_rv()
+    if (is.null(planned) || is.null(planned$resources) || nrow(planned$resources) == 0) {
+      return(data.frame(Mensaje = "Primero presiona 'Pintar / Refrescar'."))
+    }
+    
+    tasks <- get_tasks_filtered()
+    
+    # recursos (para mostrar también los que no tienen tareas)
+    res <- planned$resources %>%
+      mutate(
+        resource_id   = trimws(as.character(resource_id)),
+        resource_name = trimws(as.character(resource_name))
+      ) %>%
+      distinct(resource_id, .keep_all = TRUE)
+    
+    # si no hay tareas con filtros actuales
+    if (is.null(tasks) || nrow(tasks) == 0) {
+      return(
+        res %>%
+          transmute(
+            resource_name,
+            resource_id,
+            libre_desde = NA_character_,
+            horas_asignadas = 0,
+            tareas = 0
+          ) %>%
+          arrange(resource_name)
+      )
+    }
+    
+    sum_by_worker <- tasks %>%
+      filter(!is.na(resource_id), resource_id != "") %>%
+      group_by(resource_id) %>%
+      summarise(
+        resource_name = dplyr::first(na.omit(resource_name)),
+        libre_desde_dt = suppressWarnings(max(end_dt, na.rm = TRUE)),
+        horas_asignadas = sum(dur_h, na.rm = TRUE),
+        tareas = dplyr::n(),
+        .groups = "drop"
+      ) %>%
+      mutate(
+        libre_desde = dplyr::if_else(
+          is.finite(as.numeric(libre_desde_dt)),
+          gsub("\\.", "", format(libre_desde_dt, "%b-%d %H:%M")),
+          NA_character_
+        )
+      ) %>%
+      select(resource_id, resource_name, libre_desde, horas_asignadas, tareas)
+    
+    out <- res %>%
+      select(resource_id, resource_name) %>%
+      left_join(sum_by_worker, by = c("resource_id", "resource_name")) %>%
+      mutate(
+        libre_desde = dplyr::coalesce(libre_desde, NA_character_),
+        horas_asignadas = dplyr::coalesce(horas_asignadas, 0),
+        tareas = dplyr::coalesce(tareas, 0)
+      ) %>%
+      arrange(resource_name)
+    
+    out
+  }, striped = TRUE, bordered = TRUE, spacing = "s")
+  
+  
+  
+  
+  
+  
+  # ==========================
+  # Descargar Excel (tabla del Gantt con filtros)
+  # ==========================
+  output$btn_dl_xlsx <- downloadHandler(
+    filename = function() {
+      paste0("gantt_tasks_", format(Sys.Date(), "%Y%m%d"), ".xlsx")
+    },
+    content = function(file) {
+      planned <- planned_rv()
+      if (is.null(planned) || is.null(planned$tasks) || nrow(planned$tasks) == 0) {
+        writexl::write_xlsx(data.frame(Mensaje="No hay tareas para exportar."), path = file)
+        return()
+      }
+      
+      # MISMA TABLA que estás pintando en el Gantt (con filtros)
+      tasks <- planned$tasks %>%
+        mutate(
+          resource_id = trimws(as.character(resource_id)),
+          pais = trimws(toupper(as.character(pais)))
+        )
+      
+      sel <- input$filter_resource
+      if (!is.null(sel) && sel != "__ALL__") {
+        sel <- trimws(as.character(sel))
+        tasks <- tasks %>% dplyr::filter(resource_id == sel)
+      }
+      
+      csel <- input$filter_country
+      if (!is.null(csel) && length(csel) > 0 && !("__ALL__" %in% csel)) {
+        csel <- trimws(toupper(as.character(csel)))
+        tasks <- tasks %>% dplyr::filter(pais %in% csel)
+      }
+      
+      # (opcional) ordena para que quede “bonito”
+      if ("start_date" %in% names(tasks)) {
+        tasks <- tasks %>% arrange(resource_name, start_date)
+      }
+      
+      writexl::write_xlsx(list(tasks = tasks), path = file)
+    }
+  )
   
   
   

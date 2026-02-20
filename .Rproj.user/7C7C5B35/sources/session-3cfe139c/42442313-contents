@@ -152,11 +152,22 @@ ui <- fluidPage(
               div(class="portal__body",
                   selectInput("filter_resource", "Colaborador",
                               choices = c("Todos"="__ALL__"), selected="__ALL__", width="100%"),
+                  
+                  selectizeInput(
+                    "filter_country", "País",
+                    choices = c("Todos" = "__ALL__"),
+                    selected = "__ALL__",
+                    multiple = TRUE,
+                    options = list(placeholder = "Selecciona uno o varios países…"),
+                    width = "100%"
+                  ),
+                  
+                  
                   div(class="btn-stack",
                       actionButton("btn_run",  "Actualizar a_plan (run.R)", class="btn-tigo btn-tigo--primary"),
                       actionButton("btn_draw", "Pintar / Refrescar",        class="btn-tigo btn-tigo--ghost"),
                       actionButton("btn_pack", "Reorganizar (sin huecos)",  class="btn-tigo btn-tigo--ghost"),
-                      
+                      downloadButton("btn_dl_xlsx", "Descargar Excel (Gantt)", class="btn-tigo btn-tigo--ghost")
                   ),
                   div(class="portal__divider"),
                   uiOutput("task_details"),
@@ -173,7 +184,17 @@ ui <- fluidPage(
                   div(class="portal__hint", "Arrastra tareas para reencadenar visualmente")
               ),
               div(class="portal__body",
-                  div(id="gantt_here", class="gantt-portal"),
+                  tabsetPanel(
+                    id = "tabs_main",
+                    tabPanel("Gantt",
+                             div(id="gantt_here", class="gantt-portal")
+                    ),
+                    tabPanel("Disponibilidad",
+                             div(class="microcopy",
+                                 "Queda libre desde el fin de su última tarea (según filtros actuales)."),
+                             tableOutput("tbl_free")
+                    )
+                  ),
                   div(class="portal__divider"),
                   div(class="logbox", verbatimTextOutput("log"))
               )
