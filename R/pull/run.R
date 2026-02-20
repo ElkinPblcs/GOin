@@ -16,7 +16,7 @@ df_sla <- readr::read_csv(CSV_SLA, show_col_types = FALSE)
 workers_allowed <- readr::read_csv(CSV_WORKERS_ALLOWED, show_col_types = FALSE)
 df_workers <- readr::read_csv(CSV_WORKERS_PODS, show_col_types = FALSE)
 
-a <- build_a_from_cor(preferred_lang = "es", pause_sec = 0.05)
+a <- build_a_from_cor(preferred_lang = "es", pause_sec = 0.00)
 a <- add_sla_to_a(a, df_sla)
 
 res <- schedule_tasks_from_today(a, workers_allowed, anchor_date = Sys.Date())

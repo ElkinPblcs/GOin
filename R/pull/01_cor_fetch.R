@@ -85,7 +85,7 @@ extract_typeTask_name <- function(typeTask_obj) {
   NA_character_
 }
 
-enrich_tasks_with_details <- function(token, task_ids, preferred_lang = "es", pause_sec = 0.05) {
+enrich_tasks_with_details <- function(token, task_ids, preferred_lang = "es", pause_sec = 0.00) {
   task_ids <- unique(as.character(task_ids))
   
   rows <- lapply(task_ids, function(tid) {
@@ -104,7 +104,7 @@ enrich_tasks_with_details <- function(token, task_ids, preferred_lang = "es", pa
   dplyr::bind_rows(rows)
 }
 
-build_a_from_cor <- function(preferred_lang = "es", pause_sec = 0.05) {
+build_a_from_cor <- function(preferred_lang = "es", pause_sec = 0.00) {
   token <- get_token()
   
   statuses_no_final <- c("en_revision", "nueva", "en_proceso", "en_diseno")
