@@ -118,6 +118,14 @@ ui <- fluidPage(
       }
 
       function initOrUpdateGantt(tasks){
+        tasks = (tasks || []).map(function(t){
+          var c = statusColor(t.status);
+          t.color = c;
+          t.progressColor = c;
+          if (statusKey(t.status) === 'en_proceso') t.textColor = '#000';
+          return t;
+        });
+
         if (!window.__gantt_inited) {
           configureGanttOnce();
           gantt.init('gantt_here');
