@@ -134,6 +134,28 @@ ui <- fluidPage(
         g.parse({ data: payload.tasks || [], links: [] });
         g.render();
       });
+
+
+      function refreshVisibleGantts(){
+        var ge = getEditableGantt();
+        if (ge && typeof ge.setSizes === 'function') ge.setSizes();
+        if (ge && typeof ge.render === 'function') ge.render();
+
+        var go = getOriginalGantt();
+        if (go && typeof go.setSizes === 'function') go.setSizes();
+        if (go && typeof go.render === 'function') go.render();
+      }
+
+      document.addEventListener('shown.bs.tab', function(ev){
+        var target = ev && ev.target ? (ev.target.getAttribute('data-value') || ev.target.getAttribute('href') || '') : '';
+        if (target === 'Gantt' || target === 'Gantt original' || target.indexOf('tab-') >= 0) {
+          setTimeout(refreshVisibleGantts, 0);
+        }
+      });
+
+      window.addEventListener('resize', function(){
+        setTimeout(refreshVisibleGantts, 0);
+      });
       
       // ✅ Botón: Reorganizar (snapshot -> Shiny)
       document.addEventListener('click', function(ev){
