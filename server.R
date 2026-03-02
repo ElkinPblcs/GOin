@@ -200,14 +200,11 @@ server <- function(input, output, session) {
       updateSelectInput(session, "filter_resource",
                         choices = choices,
                         selected = "__ALL__")
-      
-      
-      
-      
-      
       send_gantt(planned)
-      
+
+      originals_ready <- sum(!is.na(planned$tasks$original_start_date) & planned$tasks$original_start_date != "")
       log_rv(paste0("OK. tasks=", nrow(planned$tasks), " | resources=", nrow(planned$resources),
+                    " | originales=", originals_ready,
                     "\nAhora: click en una cápsula y mira el panel izquierdo."))
     }, error = function(e) {
       msg <- paste("ERROR:", conditionMessage(e))
