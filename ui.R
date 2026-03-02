@@ -17,8 +17,8 @@ ui <- fluidPage(
       function normStatus(s){
         if(!s) return '';
         s = String(s).toLowerCase().trim();
-        if (s.normalize) s = s.normalize('NFD').replace(/[\u0300-\u036f]/g,'');
-        s = s.replace(/\s+/g, '_');
+        if (s.normalize) s = s.normalize('NFD').replace(/[\\u0300-\\u036f]/g,'');
+        s = s.replace(/\\s+/g, '_');
         return s;
       }
       function statusClass(s){
