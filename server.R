@@ -17,24 +17,31 @@ server <- function(input, output, session) {
         resource_id = trimws(as.character(resource_id)),
         pais = trimws(toupper(as.character(pais)))
       )
-    
+
     # 1) filtro colaborador
     sel <- input$filter_resource
     if (!is.null(sel) && sel != "__ALL__") {
       sel <- trimws(as.character(sel))
       tasks <- tasks %>% dplyr::filter(resource_id == sel)
     }
-    
+
     # 2) filtro país (multi)
     csel <- input$filter_country
     if (!is.null(csel) && length(csel) > 0 && !("__ALL__" %in% csel)) {
       csel <- trimws(toupper(as.character(csel)))
       tasks <- tasks %>% dplyr::filter(pais %in% csel)
     }
-    
+
+    tasks_original <- tasks %>%
+      mutate(
+        start_date = dplyr::coalesce(original_start_date, start_date),
+        duration = dplyr::coalesce(original_duration, duration)
+      )
+
     session$sendCustomMessage("gantt_data", list(tasks = df_to_rows(tasks)))
+    session$sendCustomMessage("gantt_original_data", list(tasks = df_to_rows(tasks_original)))
   }
-  
+
   
 
   # ----------------------------
