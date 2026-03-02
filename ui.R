@@ -21,7 +21,7 @@ ui <- fluidPage(
         return s;
       }
       function statusClass(s){
-        s = normText(s).replace(/\s+/g, '_');
+        s = normText(s).replace(/\\s+/g, '_');
         if (s === 'nueva') return 'st_nueva';
         if (s === 'en_proceso') return 'st_en_proceso';
         if (s === 'en_revision') return 'st_en_revision';
