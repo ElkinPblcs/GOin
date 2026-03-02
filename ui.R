@@ -14,19 +14,22 @@ ui <- fluidPage(
     
     # ✅ TU JS (igual que lo tenías)
     tags$script(HTML("
-      function normSkill(s){
+      function normStatus(s){
         if(!s) return '';
-        s = String(s).toLowerCase();
+        s = String(s).toLowerCase().trim();
         if (s.normalize) s = s.normalize('NFD').replace(/[\\u0300-\\u036f]/g,'');
+        s = s.replace(/\\s+/g, '_');
         return s;
       }
-      function skillClass(s){
-        s = normSkill(s);
-        if (s.includes('adapt')) return 'sk_adaptaciones';
-        if (s.includes('pro')) return 'sk_pro';
-        if (s.includes('plus')) return 'sk_plus';
-        if (s.includes('estandar')) return 'sk_estandar';
-        return 'sk_default';
+      function statusClass(s){
+        s = normStatus(s);
+        if (s === 'nueva') return 'st_nueva';
+        if (s === 'en_proceso') return 'st_en_proceso';
+        if (s === 'en_revision') return 'st_en_revision';
+        if (s === 'en_diseno') return 'st_en_diseno';
+        if (s === 'suspendida') return 'st_suspendida';
+        if (s === 'finalizada') return 'st_finalizada';
+        return 'st_default';
       }
       function countryClass(iso2){
         if(!iso2) return 'cty_default';
@@ -35,58 +38,61 @@ ui <- fluidPage(
         return 'cty_' + iso2;
       }
 
-      window.__gantt_inited = false;
+
+          return statusClass(task.status) + ' ' + countryClass(task.pais);
+      window.__gantt_single_inited = false;
+      window.__tasks_current = [];
+      window.__tasks_original = [];
 
       function sendSelectedId(id){
         if (!window.Shiny) return;
         Shiny.setInputValue('task_selected_id', { id: String(id), nonce: Date.now() }, {priority:'event'});
       }
 
-      function configureGanttOnce(){
-        gantt.config.date_format = \"%Y-%m-%d %H:%i\";
-        gantt.config.duration_unit = \"hour\";
+      function configureGantt(){
+        var g = window.__gantt_single;
+        g.config.date_format = '%Y-%m-%d %H:%i';
+        g.config.duration_unit = 'hour';
+        g.config.drag_progress = false;
 
-        gantt.config.drag_move = true;
-        gantt.config.drag_resize = true;
-        gantt.config.drag_progress = false;
+        g.config.scale_unit = 'day';
+        g.config.date_scale = '%d %b';
+        g.config.subscales = [{ unit: 'hour', step: 3, date: '%H' }];
 
-        gantt.config.scale_unit = \"day\";
-        gantt.config.date_scale = \"%d %b\";
-        gantt.config.subscales = [{ unit: \"hour\", step: 3, date: \"%H\" }];
-
-        gantt.config.grid_width = 520;
-        gantt.config.columns = [
+        g.config.grid_width = 520;
+        g.config.columns = [
           {name:'text', label:'Tarea', tree:true, width:270},
           {name:'resource_name', label:'Colaborador', width:250}
         ];
 
-        gantt.templates.task_class = function(start, end, task){
+        g.templates.task_class = function(start, end, task){
           return skillClass(task.skill_main) + ' ' + countryClass(task.pais);
         };
 
-        gantt.attachEvent('onTaskClick', function(id, e){
+        g.attachEvent('onTaskClick', function(id){
           sendSelectedId(id);
           return true;
         });
-        gantt.attachEvent('onTaskRowClick', function(id){
+        g.attachEvent('onTaskRowClick', function(id){
           sendSelectedId(id);
           return true;
         });
 
-        gantt.attachEvent('onBeforeTaskChanged', function(id, mode, task){
+        g.attachEvent('onBeforeTaskChanged', function(id, mode, task){
+          if (g.config.readonly) return true;
           task.$old_resource_id = task.resource_id;
           return true;
         });
 
-        gantt.attachEvent('onAfterTaskDrag', function(id, mode, e) {
-          var item = gantt.getTask(id);
+        g.attachEvent('onAfterTaskDrag', function(id, mode) {
+          if (g.config.readonly) return true;
+          var item = g.getTask(id);
           if (mode !== 'move' && mode !== 'resize') return true;
-
           if (window.Shiny) {
             Shiny.setInputValue('gantt_update', {
               id: String(id),
               mode: mode,
-              start_date: gantt.templates.xml_format(item.start_date),
+              start_date: g.templates.xml_format(item.start_date),
               duration: item.duration,
               resource_id: item.resource_id,
               old_resource_id: item.$old_resource_id || item.resource_id,
@@ -97,26 +103,74 @@ ui <- fluidPage(
         });
       }
 
-      function initOrUpdateGantt(tasks){
-        if (!window.__gantt_inited) {
-          configureGanttOnce();
-          gantt.init('gantt_here');
-          window.__gantt_inited = true;
+      function initGanttIfNeeded(containerId){
+        var g = window.__gantt_single;
+        if (!window.__gantt_single_inited) {
+          configureGantt();
+          g.init(containerId);
+          window.__gantt_single_inited = true;
+          return;
         }
-        gantt.clearAll();
-        gantt.parse({ data: tasks, links: [] });
-        gantt.render();
+
+        var node = document.getElementById(containerId);
+        if (!node) return;
+        if (g.$container !== node) {
+          g.init(containerId);
+        }
+      }
+
+      function renderActiveGantt(){
+        var activeTab = document.querySelector('#tabs_main li.active a');
+        var tabName = activeTab ? (activeTab.getAttribute('data-value') || activeTab.textContent || '') : 'Gantt';
+        var isOriginal = tabName.trim() === 'Gantt original';
+        var g = window.__gantt_single;
+
+        initGanttIfNeeded(isOriginal ? 'gantt_original_here' : 'gantt_here');
+
+        g.config.readonly = isOriginal;
+        g.config.drag_move = !isOriginal;
+        g.config.drag_resize = !isOriginal;
+
+        var data = isOriginal ? window.__tasks_original : window.__tasks_current;
+        g.clearAll();
+        g.parse({ data: data || [], links: [] });
+        g.render();
+        if (typeof g.setSizes === 'function') g.setSizes();
       }
 
       Shiny.addCustomMessageHandler('gantt_data', function(payload){
-        initOrUpdateGantt(payload.tasks || []);
+        window.__tasks_current = (payload && payload.tasks) ? payload.tasks : [];
+        renderActiveGantt();
       });
-      
+
+      Shiny.addCustomMessageHandler('gantt_original_data', function(payload){
+        window.__tasks_original = (payload && payload.tasks) ? payload.tasks : [];
+        renderActiveGantt();
+      });
+
+      document.addEventListener('shown.bs.tab', function(){
+        setTimeout(renderActiveGantt, 0);
+      });
+
+      window.addEventListener('resize', function(){
+        setTimeout(renderActiveGantt, 0);
+      });
+
       // ✅ Botón: Reorganizar (snapshot -> Shiny)
       document.addEventListener('click', function(ev){
         if (ev.target && ev.target.id === 'btn_pack') {
-          if (!window.Shiny || !window.__gantt_inited) return;
-          var snap = gantt.serialize(); // {data:[...], links:[...]}
+          var activeTab = document.querySelector('#tabs_main li.active a');
+          var tabName = activeTab ? (activeTab.getAttribute('data-value') || activeTab.textContent || '') : 'Gantt';
+          if (tabName.trim() === 'Gantt original') {
+            if (window.Shiny) {
+              Shiny.setInputValue('gantt_snapshot', { nonce: Date.now(), tasks: window.__tasks_current || [] }, {priority: 'event'});
+            }
+            return;
+          }
+
+          var g = window.__gantt_single;
+          if (!window.Shiny || !g) return;
+          var snap = g.serialize();
           Shiny.setInputValue('gantt_snapshot', {
             nonce: Date.now(),
             tasks: snap.data
@@ -188,6 +242,10 @@ ui <- fluidPage(
                     id = "tabs_main",
                     tabPanel("Gantt",
                              div(id="gantt_here", class="gantt-portal")
+                    ),
+                    tabPanel("Gantt original",
+                             div(class="microcopy", "Vista de fechas originales de las tareas."),
+                             div(id="gantt_original_here", class="gantt-portal")
                     ),
                     tabPanel("Disponibilidad",
                              div(class="microcopy",

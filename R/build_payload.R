@@ -34,6 +34,7 @@ build_planned_from_a_plan <- function(a_plan) {
       resource_id = if_else(is.na(collab_email_plan) | collab_email_plan == "",
                             "SIN_ASIGNAR", as.character(collab_email_plan)),
       start_date = fmt_gantt(planned_start),
+      original_start_date = fmt_gantt(planned_start),
       duration = if_else(
         !is.na(planned_start) & !is.na(planned_end),
         as.numeric(difftime(as.POSIXct(planned_end, tz = TZ_LOCAL),
@@ -42,6 +43,7 @@ build_planned_from_a_plan <- function(a_plan) {
         NA_real_
       ),
       duration = if_else(is.na(duration) | duration <= 0, TASK_FALLBACK_HOURS, duration),
+      original_duration = duration,
       status = safe_chr(status),
       priority = safe_chr(priority),
       description = safe_chr(description),
@@ -54,7 +56,7 @@ build_planned_from_a_plan <- function(a_plan) {
     mutate(resource_name = coalesce(resource_name, resource_id)) %>%
     filter(!is.na(start_date) & start_date != "") %>%
     arrange(resource_id, start_date, id) %>%
-    select(id, text, start_date, duration, resource_id, resource_name,
+    select(id, text, start_date, duration, original_start_date, original_duration, resource_id, resource_name,
            skill_main, typeTask_name, tag, pais, status, priority, description)
   
   list(tasks = tasks, resources = resources)
