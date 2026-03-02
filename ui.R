@@ -14,19 +14,22 @@ ui <- fluidPage(
     
     # ✅ TU JS (igual que lo tenías)
     tags$script(HTML("
-      function normSkill(s){
+      function normStatus(s){
         if(!s) return '';
-        s = String(s).toLowerCase();
-        if (s.normalize) s = s.normalize('NFD').replace(/[\\u0300-\\u036f]/g,'');
+        s = String(s).toLowerCase().trim();
+        if (s.normalize) s = s.normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+        s = s.replace(/\s+/g, '_');
         return s;
       }
-      function skillClass(s){
-        s = normSkill(s);
-        if (s.includes('adapt')) return 'sk_adaptaciones';
-        if (s.includes('pro')) return 'sk_pro';
-        if (s.includes('plus')) return 'sk_plus';
-        if (s.includes('estandar')) return 'sk_estandar';
-        return 'sk_default';
+      function statusClass(s){
+        s = normStatus(s);
+        if (s === 'nueva') return 'st_nueva';
+        if (s === 'en_proceso') return 'st_en_proceso';
+        if (s === 'en_revision') return 'st_en_revision';
+        if (s === 'en_diseno') return 'st_en_diseno';
+        if (s === 'suspendida') return 'st_suspendida';
+        if (s === 'finalizada') return 'st_finalizada';
+        return 'st_default';
       }
       function countryClass(iso2){
         if(!iso2) return 'cty_default';
@@ -36,7 +39,7 @@ ui <- fluidPage(
       }
 
 
-      window.__gantt_single = window.gantt;
+          return statusClass(task.status) + ' ' + countryClass(task.pais);
       window.__gantt_single_inited = false;
       window.__tasks_current = [];
       window.__tasks_original = [];
