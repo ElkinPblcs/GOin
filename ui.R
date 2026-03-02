@@ -108,12 +108,21 @@ ui <- fluidPage(
 
       function getOriginalGantt(){
         if (window.__gantt_original === null) {
-          if (window.Gantt && typeof window.Gantt.getGanttInstance === 'function') {
-            var g = window.Gantt.getGanttInstance();
+          var getInstance = null;
+
+          if (window.gantt && typeof window.gantt.getGanttInstance === 'function') {
+            getInstance = window.gantt.getGanttInstance.bind(window.gantt);
+          } else if (window.Gantt && typeof window.Gantt.getGanttInstance === 'function') {
+            getInstance = window.Gantt.getGanttInstance.bind(window.Gantt);
+          }
+
+          if (getInstance) {
+            var g = getInstance();
             configureCommonGantt(g, false);
             g.init('gantt_original_here');
             window.__gantt_original = g;
           } else {
+            console.warn('No fue posible crear segunda instancia de Gantt para pestaña original.');
             window.__gantt_original = false;
           }
         }
