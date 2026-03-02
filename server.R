@@ -6,37 +6,43 @@ library(lubridate)
 server <- function(input, output, session) {
   planned_rv <- reactiveVal(NULL)
   a_plan_rv <- reactiveVal(NULL)
+  original_tasks_rv <- reactiveVal(NULL)
   selected_id_rv <- reactiveVal(NULL)
   log_rv <- reactiveVal("Listo. Presiona 'Pintar/Refrescar'.")
   
   output$log <- renderText(log_rv())
   
-  send_gantt <- function(planned) {
-    tasks <- planned$tasks %>%
+  apply_filters <- function(tasks) {
+    tasks <- tasks %>%
       mutate(
         resource_id = trimws(as.character(resource_id)),
         pais = trimws(toupper(as.character(pais)))
       )
 
-    # 1) filtro colaborador
     sel <- input$filter_resource
     if (!is.null(sel) && sel != "__ALL__") {
       sel <- trimws(as.character(sel))
       tasks <- tasks %>% dplyr::filter(resource_id == sel)
     }
 
-    # 2) filtro país (multi)
     csel <- input$filter_country
     if (!is.null(csel) && length(csel) > 0 && !("__ALL__" %in% csel)) {
       csel <- trimws(toupper(as.character(csel)))
       tasks <- tasks %>% dplyr::filter(pais %in% csel)
     }
 
-    tasks_original <- tasks %>%
-      mutate(
-        start_date = dplyr::coalesce(original_start_date, start_date),
-        duration = dplyr::coalesce(original_duration, duration)
-      )
+    tasks
+  }
+
+  send_gantt <- function(planned) {
+    tasks <- apply_filters(planned$tasks)
+
+    original_tasks <- original_tasks_rv()
+    if (is.null(original_tasks)) {
+      original_tasks <- planned$tasks
+    }
+
+    tasks_original <- apply_filters(original_tasks)
 
     session$sendCustomMessage("gantt_data", list(tasks = df_to_rows(tasks)))
     session$sendCustomMessage("gantt_original_data", list(tasks = df_to_rows(tasks_original)))
@@ -155,6 +161,7 @@ server <- function(input, output, session) {
       }
       
       planned_rv(planned)
+      original_tasks_rv(planned$tasks)
       
       # ======================
       # choices país (multi)
@@ -202,7 +209,7 @@ server <- function(input, output, session) {
                         selected = "__ALL__")
       send_gantt(planned)
 
-      originals_ready <- sum(!is.na(planned$tasks$original_start_date) & planned$tasks$original_start_date != "")
+      originals_ready <- sum(!is.na(original_tasks_rv()$start_date) & original_tasks_rv()$start_date != "")
       log_rv(paste0("OK. tasks=", nrow(planned$tasks), " | resources=", nrow(planned$resources),
                     " | originales=", originals_ready,
                     "\nAhora: click en una cápsula y mira el panel izquierdo."))
