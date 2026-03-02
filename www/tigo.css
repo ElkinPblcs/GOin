@@ -143,12 +143,14 @@
   .gantt_task_line{ border-radius:9999px !important; border:none !important; }
   .gantt_task_content{ padding-left:10px; font-weight:900; }
   
-  /* Skill colors (más alineados a paleta) */
-  .gantt_task_line.sk_adaptaciones{ background: #44C8F5 !important; }
-  .gantt_task_line.sk_pro         { background: #FF0064 !important; }
-  .gantt_task_line.sk_plus        { background: #FFC200 !important; color:#000 !important; }
-  .gantt_task_line.sk_estandar    { background: #001EB4 !important; }
-  .gantt_task_line.sk_default     { background: #64748b !important; }
+  /* Status colors */
+  .gantt_task_line.st_nueva       { background: #239CC6 !important; }
+  .gantt_task_line.st_en_proceso  { background: #FBB346 !important; color:#000 !important; }
+  .gantt_task_line.st_en_revision { background: #A378BF !important; }
+  .gantt_task_line.st_en_diseno   { background: #E84362 !important; }
+  .gantt_task_line.st_suspendida  { background: #6B6B6B !important; }
+  .gantt_task_line.st_finalizada  { background: #1FCB7F !important; }
+  .gantt_task_line.st_default     { background: #64748b !important; }
   
   /* Country rings (si luego quieres, los ajustamos a tu paleta corporativa) */
   .gantt_task_line.cty_co{ box-shadow: inset 0 0 0 3px #FB561E !important; }
