@@ -142,6 +142,7 @@
   /* Capsules */
   .gantt_task_line{ border-radius:9999px !important; border:none !important; }
   .gantt_task_content{ padding-left:10px; font-weight:900; }
+  .gantt_task_line .gantt_task_progress{ background: var(--task-status-color, inherit) !important; }
   
   /* Status colors */
   .gantt_task_line.st_nueva,

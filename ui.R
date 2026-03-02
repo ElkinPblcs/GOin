@@ -20,8 +20,11 @@ ui <- fluidPage(
         if (s.normalize) s = s.normalize('NFD').replace(/[\\u0300-\\u036f]/g,'');
         return s;
       }
+      function statusKey(s){
+        return normText(s).replace(/\\s+/g, '_');
+      }
       function statusClass(s){
-        s = normText(s).replace(/\\s+/g, '_');
+        s = statusKey(s);
         if (s === 'nueva') return 'st_nueva';
         if (s === 'en_proceso') return 'st_en_proceso';
         if (s === 'en_revision') return 'st_en_revision';
@@ -29,6 +32,16 @@ ui <- fluidPage(
         if (s === 'suspendida') return 'st_suspendida';
         if (s === 'finalizada') return 'st_finalizada';
         return 'st_default';
+      }
+      function statusColor(s){
+        s = statusKey(s);
+        if (s === 'nueva') return '#239CC6';
+        if (s === 'en_proceso') return '#FBB346';
+        if (s === 'en_revision') return '#A378BF';
+        if (s === 'en_diseno') return '#E84362';
+        if (s === 'suspendida') return '#6B6B6B';
+        if (s === 'finalizada') return '#1FCB7F';
+        return '#64748b';
       }
       function countryClass(iso2){
         if(!iso2) return 'cty_default';
@@ -64,6 +77,11 @@ ui <- fluidPage(
 
         gantt.templates.task_class = function(start, end, task){
           return statusClass(task.status) + ' ' + countryClass(task.pais);
+        };
+        gantt.templates.task_style = function(start, end, task){
+          var c = statusColor(task.status);
+          var txt = (statusKey(task.status) === 'en_proceso') ? 'color:#000;' : '';
+          return 'background:' + c + ';border-color:' + c + ';--task-status-color:' + c + ';' + txt;
         };
 
         gantt.attachEvent('onTaskClick', function(id, e){
