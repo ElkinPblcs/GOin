@@ -68,6 +68,7 @@ ui <- fluidPage(
         gantt.config.scale_unit = \"day\";
         gantt.config.date_scale = \"%d %b\";
         gantt.config.subscales = [{ unit: \"hour\", step: 3, date: \"%H\" }];
+        gantt.config.min_column_width = 105; // ~1.5x ancho diario
 
         gantt.config.grid_width = 520;
         gantt.config.columns = [
