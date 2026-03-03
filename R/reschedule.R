@@ -24,7 +24,7 @@ reschedule_resource_chain <- function(gantt_df, resource_id, moved_task_id, anch
     g$start_date[r] <- format(cur, "%Y-%m-%d %H:%M")
     dur <- suppressWarnings(as.numeric(g$duration[r]))
     if (is.na(dur) || dur <= 0) dur <- TASK_FALLBACK_HOURS
-    cur <- cur + hours(dur)
+    cur <- cur + as.difftime(dur, units = "hours")
   }
   
   g

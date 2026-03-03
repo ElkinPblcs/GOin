@@ -43,7 +43,7 @@ pack_all_resources_no_gaps <- function(tasks,
     cur <- anchor
     for (k in seq_len(nrow(sub))) {
       tasks[[start_col]][ idx[ match(sub$.id[k], tasks$.id[idx]) ][1] ] <- format(cur, "%Y-%m-%d %H:%M")
-      cur <- cur + hours(sub$.dur[k])
+      cur <- cur + as.difftime(sub$.dur[k], units = "hours")
     }
     
     # refrescar .st del bloque (opcional)
