@@ -16,7 +16,8 @@ server <- function(input, output, session) {
       mutate(
         resource_id = trimws(as.character(resource_id)),
         pais = trimws(toupper(as.character(pais))),
-        objetivo = trimws(as.character(objetivo))
+        objetivo = trimws(as.character(objetivo)),
+        business_unit = trimws(as.character(business_unit))
       )
     
     # 1) filtro colaborador
@@ -33,10 +34,16 @@ server <- function(input, output, session) {
       tasks <- tasks %>% dplyr::filter(pais %in% csel)
     }
 
-    bsel <- input$filter_objective
-    if (!is.null(bsel) && bsel != "__ALL__") {
-      bsel <- trimws(as.character(bsel))
-      tasks <- tasks %>% dplyr::filter(objetivo == bsel)
+    osel <- input$filter_objective
+    if (!is.null(osel) && osel != "__ALL__") {
+      osel <- trimws(as.character(osel))
+      tasks <- tasks %>% dplyr::filter(objetivo == osel)
+    }
+
+    busel <- input$filter_business_unit
+    if (!is.null(busel) && busel != "__ALL__") {
+      busel <- trimws(as.character(busel))
+      tasks <- tasks %>% dplyr::filter(business_unit == busel)
     }
     
     session$sendCustomMessage("gantt_data", list(tasks = df_to_rows(tasks)))
@@ -59,6 +66,7 @@ server <- function(input, output, session) {
         resource_name = trimws(as.character(resource_name)),
         pais = trimws(toupper(as.character(pais))),
         objetivo = trimws(as.character(objetivo)),
+        business_unit = trimws(as.character(business_unit)),
         start_dt = suppressWarnings(as.POSIXct(start_date, format="%Y-%m-%d %H:%M", tz = TZ_LOCAL)),
         dur_h = suppressWarnings(as.numeric(duration))
       ) %>%
@@ -81,10 +89,16 @@ server <- function(input, output, session) {
       tasks <- tasks %>% dplyr::filter(pais %in% csel)
     }
 
-    bsel <- input$filter_objective
-    if (!is.null(bsel) && bsel != "__ALL__") {
-      bsel <- trimws(as.character(bsel))
-      tasks <- tasks %>% dplyr::filter(objetivo == bsel)
+    osel <- input$filter_objective
+    if (!is.null(osel) && osel != "__ALL__") {
+      osel <- trimws(as.character(osel))
+      tasks <- tasks %>% dplyr::filter(objetivo == osel)
+    }
+
+    busel <- input$filter_business_unit
+    if (!is.null(busel) && busel != "__ALL__") {
+      busel <- trimws(as.character(busel))
+      tasks <- tasks %>% dplyr::filter(business_unit == busel)
     }
     
     tasks
@@ -135,6 +149,7 @@ server <- function(input, output, session) {
              tags$div(class="detail-row", tags$span(class="detail-k", "Dur(h):"), tags$span(class="detail-v", as.character(t$duration))),
              tags$div(class="detail-row", tags$span(class="detail-k", "Skill:"),  tags$span(class="detail-v", t$skill_main)),
              tags$div(class="detail-row", tags$span(class="detail-k", "Objetivo:"), tags$span(class="detail-v", t$objetivo)),
+             tags$div(class="detail-row", tags$span(class="detail-k", "Unidad de negocio:"), tags$span(class="detail-v", t$business_unit)),
              tags$div(class="detail-row", tags$span(class="detail-k", "Type:"),   tags$span(class="detail-v", t$typeTask_name)),
              tags$div(class="detail-row", tags$span(class="detail-k", "Tag:"),    tags$span(class="detail-v", t$tag)),
              tags$div(class="detail-row", tags$span(class="detail-k", "País:"),   tags$span(class="detail-v", t$pais)),
@@ -193,8 +208,18 @@ server <- function(input, output, session) {
       updateSelectInput(session, "filter_objective",
                         choices = objective_choices,
                         selected = "__ALL__")
-      
-      
+
+      bu2 <- planned$tasks %>%
+        mutate(business_unit = trimws(as.character(business_unit))) %>%
+        filter(!is.na(business_unit), business_unit != "") %>%
+        distinct(business_unit) %>%
+        arrange(business_unit) %>%
+        pull(business_unit)
+
+      business_unit_choices <- c("Todas"="__ALL__", setNames(bu2, bu2))
+      updateSelectInput(session, "filter_business_unit",
+                        choices = business_unit_choices,
+                        selected = "__ALL__")
       
       res <- planned$resources
       res <- planned$resources %>%
@@ -347,7 +372,12 @@ server <- function(input, output, session) {
     if (is.null(planned)) return()
     send_gantt(planned)
   }, ignoreInit = TRUE)
-  
+
+  observeEvent(input$filter_business_unit, {
+    planned <- planned_rv()
+    if (is.null(planned)) return()
+    send_gantt(planned)
+  }, ignoreInit = TRUE)
   
   
   
@@ -442,7 +472,8 @@ server <- function(input, output, session) {
         mutate(
           resource_id = trimws(as.character(resource_id)),
           pais = trimws(toupper(as.character(pais))),
-          objetivo = trimws(as.character(objetivo))
+          objetivo = trimws(as.character(objetivo)),
+          business_unit = trimws(as.character(business_unit))
         )
       
       sel <- input$filter_resource
@@ -457,10 +488,16 @@ server <- function(input, output, session) {
         tasks <- tasks %>% dplyr::filter(pais %in% csel)
       }
 
-      bsel <- input$filter_objective
-      if (!is.null(bsel) && bsel != "__ALL__") {
-        bsel <- trimws(as.character(bsel))
-        tasks <- tasks %>% dplyr::filter(objetivo == bsel)
+      osel <- input$filter_objective
+      if (!is.null(osel) && osel != "__ALL__") {
+        osel <- trimws(as.character(osel))
+        tasks <- tasks %>% dplyr::filter(objetivo == osel)
+      }
+
+      busel <- input$filter_business_unit
+      if (!is.null(busel) && busel != "__ALL__") {
+        busel <- trimws(as.character(busel))
+        tasks <- tasks %>% dplyr::filter(business_unit == busel)
       }
       
       # (opcional) ordena para que quede “bonito”
