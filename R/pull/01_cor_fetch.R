@@ -172,12 +172,6 @@ build_a_from_cor <- function(preferred_lang = "es", pause_sec = 0.00) {
   statuses_no_final <- c("en_revision", "nueva", "en_proceso", "en_diseno")
   tasks <- dplyr::bind_rows(lapply(statuses_no_final, function(s) get_tasks_by_status_paged(token, s)))
 
-  if ("archived" %in% names(tasks)) {
-    tasks <- tasks %>%
-      dplyr::mutate(archived = vapply(archived, coerce_archived_flag, logical(1))) %>%
-      dplyr::filter(archived == FALSE)
-  }
-  
   workers_df <- if (exists("df_workers", inherits = TRUE)) get("df_workers", inherits = TRUE) else NULL
   first_collabs <- lapply(tasks$collaborators, function(z) get_first_collab(z, workers_df = workers_df))
   
@@ -219,6 +213,12 @@ build_a_from_cor <- function(preferred_lang = "es", pause_sec = 0.00) {
       skill_names, typeTask_name,
       tag = dplyr::if_else(grepl("\\[(.*?)\\]", title), sub(".*\\[(.*?)\\].*", "\\1", title), NA_character_)
     )
+  
+  if ("archived" %in% names(a)) {
+    a <- a %>%
+      dplyr::mutate(archived = vapply(archived, coerce_archived_flag, logical(1))) %>%
+      dplyr::filter(archived == FALSE)
+  }
   
   a
 }
