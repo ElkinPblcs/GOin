@@ -142,13 +142,23 @@
   /* Capsules */
   .gantt_task_line{ border-radius:9999px !important; border:none !important; }
   .gantt_task_content{ padding-left:10px; font-weight:900; }
+  .gantt_task_line .gantt_task_progress{ background: var(--task-status-color, inherit) !important; }
   
-  /* Skill colors (más alineados a paleta) */
-  .gantt_task_line.sk_adaptaciones{ background: #44C8F5 !important; }
-  .gantt_task_line.sk_pro         { background: #FF0064 !important; }
-  .gantt_task_line.sk_plus        { background: #FFC200 !important; color:#000 !important; }
-  .gantt_task_line.sk_estandar    { background: #001EB4 !important; }
-  .gantt_task_line.sk_default     { background: #64748b !important; }
+  /* Status colors */
+  .gantt_task_line.st_nueva,
+  .gantt_task_line.st_nueva .gantt_task_progress { background: #239CC6 !important; }
+  .gantt_task_line.st_en_proceso,
+  .gantt_task_line.st_en_proceso .gantt_task_progress { background: #FBB346 !important; color:#000 !important; }
+  .gantt_task_line.st_en_revision,
+  .gantt_task_line.st_en_revision .gantt_task_progress { background: #A378BF !important; }
+  .gantt_task_line.st_en_diseno,
+  .gantt_task_line.st_en_diseno .gantt_task_progress { background: #E84362 !important; }
+  .gantt_task_line.st_suspendida,
+  .gantt_task_line.st_suspendida .gantt_task_progress { background: #6B6B6B !important; }
+  .gantt_task_line.st_finalizada,
+  .gantt_task_line.st_finalizada .gantt_task_progress { background: #1FCB7F !important; }
+  .gantt_task_line.st_default,
+  .gantt_task_line.st_default .gantt_task_progress { background: #64748b !important; }
   
   /* Country rings (si luego quieres, los ajustamos a tu paleta corporativa) */
   .gantt_task_line.cty_co{ box-shadow: inset 0 0 0 3px #FB561E !important; }

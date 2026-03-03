@@ -45,16 +45,67 @@ get_task_by_id <- function(token, task_id) {
   httr::content(r, as = "parsed", type = "application/json")
 }
 
-get_first_collab <- function(x) {
-  if (is.null(x) || length(x) == 0) return(NULL)
-  if (is.data.frame(x)) return(if (nrow(x) == 0) NULL else as.list(x[1, , drop = FALSE]))
-  if (is.list(x)) {
-    first <- x[[1]]
-    if (is.null(first)) return(NULL)
-    if (is.data.frame(first)) return(if (nrow(first) == 0) NULL else as.list(first[1, , drop = FALSE]))
-    if (is.list(first)) return(first)
+norm_name <- function(x) {
+  x <- as.character(x)
+  x[is.na(x)] <- ""
+  x <- stringr::str_to_lower(stringr::str_squish(x))
+  iconv(x, from = "UTF-8", to = "ASCII//TRANSLIT")
+}
+
+collab_to_list <- function(cobj) {
+  if (is.null(cobj)) return(NULL)
+  if (is.data.frame(cobj)) {
+    if (nrow(cobj) == 0) return(NULL)
+    return(as.list(cobj[1, , drop = FALSE]))
   }
+  if (is.list(cobj)) return(cobj)
   NULL
+}
+
+collab_full_name <- function(cobj) {
+  fn <- if (!is.null(cobj$first_name)) as.character(cobj$first_name)[1] else ""
+  ln <- if (!is.null(cobj$last_name)) as.character(cobj$last_name)[1] else ""
+  stringr::str_squish(paste(fn, ln))
+}
+
+collab_is_allowed_worker <- function(cobj, workers_df, allowed_roles) {
+  if (is.null(workers_df) || !is.data.frame(workers_df) || nrow(workers_df) == 0) return(FALSE)
+  if (!all(c("worker_name", "puesto") %in% names(workers_df))) return(FALSE)
+
+  role_ok <- norm_name(workers_df$puesto) %in% norm_name(allowed_roles)
+  wk <- workers_df[role_ok, , drop = FALSE]
+  if (nrow(wk) == 0) return(FALSE)
+
+  c_full <- norm_name(collab_full_name(cobj))
+  c_fn <- if (!is.null(cobj$first_name)) norm_name(as.character(cobj$first_name)[1]) else ""
+  c_ln <- if (!is.null(cobj$last_name)) norm_name(as.character(cobj$last_name)[1]) else ""
+
+  wk_full <- norm_name(wk$worker_name)
+  wk_pair <- norm_name(paste(wk$first_name, wk$last_name))
+
+  any(c_full != "" & (wk_full == c_full | wk_pair == c_full)) ||
+    any(c_fn != "" & c_ln != "" & wk_pair == norm_name(paste(c_fn, c_ln)))
+}
+
+get_first_collab <- function(x, workers_df = NULL,
+                             allowed_roles = c("Designer 2", "Designer 1", "Multimedia producer")) {
+  if (is.null(x) || length(x) == 0) return(NULL)
+
+  candidates <- list()
+  if (is.data.frame(x)) {
+    candidates <- lapply(seq_len(nrow(x)), function(i) as.list(x[i, , drop = FALSE]))
+  } else if (is.list(x)) {
+    candidates <- lapply(x, collab_to_list)
+    candidates <- Filter(Negate(is.null), candidates)
+  }
+
+  if (length(candidates) == 0) return(NULL)
+
+  idx <- which(vapply(candidates, collab_is_allowed_worker,
+                      logical(1), workers_df = workers_df, allowed_roles = allowed_roles))
+  if (length(idx) > 0) return(candidates[[idx[1]]])
+
+  candidates[[1]]
 }
 
 extract_skills_one_lang <- function(skill_list, preferred_lang = "es") {
@@ -109,8 +160,20 @@ build_a_from_cor <- function(preferred_lang = "es", pause_sec = 0.00) {
   
   statuses_no_final <- c("en_revision", "nueva", "en_proceso", "en_diseno")
   tasks <- dplyr::bind_rows(lapply(statuses_no_final, function(s) get_tasks_by_status_paged(token, s)))
+
+  if ("archived" %in% names(tasks)) {
+    tasks <- tasks %>%
+      dplyr::mutate(
+        archived = dplyr::case_when(
+          is.logical(archived) ~ archived,
+          TRUE ~ tolower(trimws(as.character(archived))) %in% c("true", "1", "t", "yes", "y")
+        )
+      ) %>%
+      dplyr::filter(archived == FALSE)
+  }
   
-  first_collabs <- lapply(tasks$collaborators, get_first_collab)
+  workers_df <- if (exists("df_workers", inherits = TRUE)) get("df_workers", inherits = TRUE) else NULL
+  first_collabs <- lapply(tasks$collaborators, function(z) get_first_collab(z, workers_df = workers_df))
   
   tasks_flat <- tasks %>%
     dplyr::mutate(
@@ -129,11 +192,22 @@ build_a_from_cor <- function(preferred_lang = "es", pause_sec = 0.00) {
   
   details <- enrich_tasks_with_details(token, tasks_flat$id, preferred_lang = preferred_lang, pause_sec = pause_sec)
   
+  project_name_col <- if ("project_name" %in% names(tasks_flat)) {
+    "project_name"
+  } else if ("project.name" %in% names(tasks_flat)) {
+    "project.name"
+  } else {
+    NULL
+  }
+
   a <- tasks_flat %>%
-    dplyr::mutate(id = as.character(id)) %>%
+    dplyr::mutate(
+      id = as.character(id),
+      project_name = if (is.null(project_name_col)) NA_character_ else as.character(.data[[project_name_col]])
+    ) %>%
     dplyr::left_join(details, by = "id") %>%
     dplyr::transmute(
-      id, title, description, project_id, deadline, status, priority,
+      id, title, description, project_id, project_name, deadline, status, priority,
       archived, user_id, task_father, hour_charged, order_tasks, datetime, deliverable,
       collab_id, collab_first_name, collab_last_name, collab_email, collab_userPosition_name,
       skill_names, typeTask_name,
