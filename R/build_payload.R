@@ -75,9 +75,9 @@ build_planned_from_a_plan <- function(a_plan) {
       typeTask_name = safe_chr(typeTask_name),
       tag = safe_chr(tag),
       project_name = safe_chr(project_name),
-      objetivo = safe_chr(project_name),
       skill_names = safe_chr(skill_names),
-      business_unit = detect_business_unit(skill_names),
+      objetivo = detect_business_unit(skill_names),
+      business_unit = safe_chr(project_name),
       pais = extract_country_from_tag(tag)
     ) %>%
     left_join(resources, by = "resource_id") %>%
