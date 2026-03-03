@@ -129,11 +129,22 @@ build_a_from_cor <- function(preferred_lang = "es", pause_sec = 0.00) {
   
   details <- enrich_tasks_with_details(token, tasks_flat$id, preferred_lang = preferred_lang, pause_sec = pause_sec)
   
+  project_name_col <- if ("project_name" %in% names(tasks_flat)) {
+    "project_name"
+  } else if ("project.name" %in% names(tasks_flat)) {
+    "project.name"
+  } else {
+    NULL
+  }
+
   a <- tasks_flat %>%
-    dplyr::mutate(id = as.character(id)) %>%
+    dplyr::mutate(
+      id = as.character(id),
+      project_name = if (is.null(project_name_col)) NA_character_ else as.character(.data[[project_name_col]])
+    ) %>%
     dplyr::left_join(details, by = "id") %>%
     dplyr::transmute(
-      id, title, description, project_id, deadline, status, priority,
+      id, title, description, project_id, project_name, deadline, status, priority,
       archived, user_id, task_father, hour_charged, order_tasks, datetime, deliverable,
       collab_id, collab_first_name, collab_last_name, collab_email, collab_userPosition_name,
       skill_names, typeTask_name,

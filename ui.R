@@ -191,7 +191,7 @@ ui <- fluidPage(
                     width = "100%"
                   ),
 
-                  selectInput("filter_business", "Unidad de negocio",
+                  selectInput("filter_objective", "Objetivo",
                               choices = c("Todas" = "__ALL__"), selected = "__ALL__", width = "100%"),
                   
                   
