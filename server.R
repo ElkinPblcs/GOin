@@ -413,6 +413,8 @@ server <- function(input, output, session) {
       "#beff00"
     )
 
+    pie_colors <- rep(brand_pie_colors, length.out = nrow(pie_df))
+
     plotly::plot_ly(
       data = pie_df,
       labels = ~label,
@@ -420,7 +422,7 @@ server <- function(input, output, session) {
       type = "pie",
       textinfo = "label+percent",
       hovertemplate = "%{label}<br>Horas: %{value:.1f}<extra></extra>",
-      marker = list(colors = rep_len(brand_pie_colors, nrow(pie_df)))
+      marker = list(colors = unname(pie_colors))
     ) %>%
       plotly::layout(
         title = list(text = "Horas pendientes por recurso", x = 0.02),
