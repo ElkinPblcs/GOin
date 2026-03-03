@@ -232,3 +232,15 @@
 @media (max-width: 1100px){
   .availability-grid{ grid-template-columns: 1fr; }
 }
+
+
+/* DT styles en disponibilidad */
+#tbl_free .dataTables_wrapper{ font-size:12px; }
+#tbl_free table.dataTable thead th{
+  background:#EEF2FF !important;
+  color:#1f2a44 !important;
+  border-bottom:1px solid rgba(0,0,0,.08) !important;
+}
+#tbl_free table.dataTable tbody tr:nth-child(even){ background:#FAFBFF; }
+#tbl_free table.dataTable tbody tr:hover{ background:#F3F7FF !important; }
+#tbl_free .dataTables_info{ color:#475569; padding-top:8px; }

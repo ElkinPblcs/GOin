@@ -234,7 +234,7 @@ ui <- fluidPage(
                                  ),
                                  div(class = "availability-card",
                                      div(class = "availability-card__title", "Detalle de disponibilidad"),
-                                     tableOutput("tbl_free")
+                                     DT::DTOutput("tbl_free")
                                  )
                              )
                     )

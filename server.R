@@ -408,7 +408,7 @@ server <- function(input, output, session) {
     )
   })
 
-  output$tbl_free <- renderTable({
+  output$tbl_free <- DT::renderDT({
     planned <- planned_rv()
     if (is.null(planned) || is.null(planned$resources) || nrow(planned$resources) == 0) {
       return(data.frame(Mensaje = "Primero presiona 'Pintar / Refrescar'."))
@@ -476,8 +476,19 @@ server <- function(input, output, session) {
         `# Tareas` = tareas
       )
     
-    out
-  }, striped = TRUE, bordered = TRUE, spacing = "s")
+    DT::datatable(
+      out,
+      rownames = FALSE,
+      class = "compact stripe hover",
+      options = list(
+        pageLength = 12,
+        lengthChange = FALSE,
+        autoWidth = TRUE,
+        order = list(list(2, 'desc')),
+        dom = 'tip'
+      )
+    )
+  })
   
   
   
