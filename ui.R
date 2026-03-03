@@ -14,19 +14,34 @@ ui <- fluidPage(
     
     # ✅ TU JS (igual que lo tenías)
     tags$script(HTML("
-      function normSkill(s){
+      function normText(s){
         if(!s) return '';
         s = String(s).toLowerCase();
         if (s.normalize) s = s.normalize('NFD').replace(/[\\u0300-\\u036f]/g,'');
         return s;
       }
-      function skillClass(s){
-        s = normSkill(s);
-        if (s.includes('adapt')) return 'sk_adaptaciones';
-        if (s.includes('pro')) return 'sk_pro';
-        if (s.includes('plus')) return 'sk_plus';
-        if (s.includes('estandar')) return 'sk_estandar';
-        return 'sk_default';
+      function statusKey(s){
+        return normText(s).replace(/\\s+/g, '_');
+      }
+      function statusClass(s){
+        s = statusKey(s);
+        if (s === 'nueva') return 'st_nueva';
+        if (s === 'en_proceso') return 'st_en_proceso';
+        if (s === 'en_revision') return 'st_en_revision';
+        if (s === 'en_diseno') return 'st_en_diseno';
+        if (s === 'suspendida') return 'st_suspendida';
+        if (s === 'finalizada') return 'st_finalizada';
+        return 'st_default';
+      }
+      function statusColor(s){
+        s = statusKey(s);
+        if (s === 'nueva') return '#239CC6';
+        if (s === 'en_proceso') return '#FBB346';
+        if (s === 'en_revision') return '#A378BF';
+        if (s === 'en_diseno') return '#E84362';
+        if (s === 'suspendida') return '#6B6B6B';
+        if (s === 'finalizada') return '#1FCB7F';
+        return '#64748b';
       }
       function countryClass(iso2){
         if(!iso2) return 'cty_default';
@@ -53,6 +68,7 @@ ui <- fluidPage(
         gantt.config.scale_unit = \"day\";
         gantt.config.date_scale = \"%d %b\";
         gantt.config.subscales = [{ unit: \"hour\", step: 3, date: \"%H\" }];
+        gantt.config.min_column_width = 105; // ~1.5x ancho diario
 
         gantt.config.grid_width = 520;
         gantt.config.columns = [
@@ -61,7 +77,12 @@ ui <- fluidPage(
         ];
 
         gantt.templates.task_class = function(start, end, task){
-          return skillClass(task.skill_main) + ' ' + countryClass(task.pais);
+          return statusClass(task.status) + ' ' + countryClass(task.pais);
+        };
+        gantt.templates.task_style = function(start, end, task){
+          var c = statusColor(task.status);
+          var txt = (statusKey(task.status) === 'en_proceso') ? 'color:#000;' : '';
+          return 'background:' + c + ';border-color:' + c + ';--task-status-color:' + c + ';' + txt;
         };
 
         gantt.attachEvent('onTaskClick', function(id, e){
@@ -98,6 +119,14 @@ ui <- fluidPage(
       }
 
       function initOrUpdateGantt(tasks){
+        tasks = (tasks || []).map(function(t){
+          var c = statusColor(t.status);
+          t.color = c;
+          t.progressColor = c;
+          if (statusKey(t.status) === 'en_proceso') t.textColor = '#000';
+          return t;
+        });
+
         if (!window.__gantt_inited) {
           configureGanttOnce();
           gantt.init('gantt_here');
@@ -161,6 +190,12 @@ ui <- fluidPage(
                     options = list(placeholder = "Selecciona uno o varios países…"),
                     width = "100%"
                   ),
+
+                  selectInput("filter_objective", "Objetivo",
+                              choices = c("Todas" = "__ALL__"), selected = "__ALL__", width = "100%"),
+
+                  selectInput("filter_business_unit", "Unidad de negocio",
+                              choices = c("Todas" = "__ALL__"), selected = "__ALL__", width = "100%"),
                   
                   
                   div(class="btn-stack",
