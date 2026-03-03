@@ -402,6 +402,17 @@ server <- function(input, output, session) {
     pie_df <- pie_df %>%
       mutate(label = paste0(resource_name, " (", round(horas_pendientes, 1), "h)"))
 
+    brand_pie_colors <- c(
+      "#001eb4",
+      "#00005a",
+      "#44c8f5",
+      "#ffbe00",
+      "#ff0064",
+      "#fb561e",
+      "#00f52d",
+      "#beff00"
+    )
+
     plotly::plot_ly(
       data = pie_df,
       labels = ~label,
@@ -409,7 +420,7 @@ server <- function(input, output, session) {
       type = "pie",
       textinfo = "label+percent",
       hovertemplate = "%{label}<br>Horas: %{value:.1f}<extra></extra>",
-      marker = list(colors = grDevices::hcl.colors(nrow(pie_df), "Set 3"))
+      marker = list(colors = rep_len(brand_pie_colors, nrow(pie_df)))
     ) %>%
       plotly::layout(
         title = list(text = "Horas pendientes por recurso", x = 0.02),
