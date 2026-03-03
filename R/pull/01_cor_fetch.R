@@ -136,10 +136,10 @@ extract_typeTask_name <- function(typeTask_obj) {
   NA_character_
 }
 
-enrich_tasks_with_details <- function(token, task_ids, preferred_lang = "es", pause_sec = 0.00) {
+enrich_tasks_with_details <- function(token, task_ids, preferred_lang = "es", pause_sec = 0.00, cores = 2L) {
   task_ids <- unique(as.character(task_ids))
-  
-  rows <- lapply(task_ids, function(tid) {
+
+  fetch_one <- function(tid) {
     if (!is.null(pause_sec) && pause_sec > 0) Sys.sleep(pause_sec)
     payload <- tryCatch(get_task_by_id(token, tid), error = function(e) NULL)
     if (is.null(payload)) {
@@ -150,18 +150,34 @@ enrich_tasks_with_details <- function(token, task_ids, preferred_lang = "es", pa
       skill_names = extract_skills_one_lang(payload$skill, preferred_lang = preferred_lang),
       typeTask_name = extract_typeTask_name(payload$typeTask)
     )
-  })
-  
+  }
+
+  use_mc <- .Platform$OS.type != "windows"
+  n_cores <- max(1L, min(as.integer(cores), 2L, length(task_ids)))
+
+  rows <- if (use_mc && n_cores > 1L) {
+    parallel::mclapply(task_ids, fetch_one, mc.cores = n_cores)
+  } else {
+    lapply(task_ids, fetch_one)
+  }
+
   dplyr::bind_rows(rows)
 }
 
-build_a_from_cor <- function(preferred_lang = "es", pause_sec = 0.00) {
+build_a_from_cor <- function(preferred_lang = "es", pause_sec = 0.00, workers_df = NULL) {
   token <- get_token()
   
   statuses_no_final <- c("en_revision", "nueva", "en_proceso", "en_diseno")
   tasks <- dplyr::bind_rows(lapply(statuses_no_final, function(s) get_tasks_by_status_paged(token, s)))
+
+  if ("archived" %in% names(tasks)) {
+    tasks <- tasks %>%
+      dplyr::mutate(.archived_flag = tolower(trimws(as.character(archived))) %in% c("true", "1", "t")) %>%
+      dplyr::filter(!.archived_flag) %>%
+      dplyr::select(-.archived_flag)
+  }
   
-  workers_df <- if (exists("df_workers", inherits = TRUE)) get("df_workers", inherits = TRUE) else NULL
+  if (is.null(workers_df) && exists("df_workers", inherits = TRUE)) workers_df <- get("df_workers", inherits = TRUE)
   first_collabs <- lapply(tasks$collaborators, function(z) get_first_collab(z, workers_df = workers_df))
   
   tasks_flat <- tasks %>%

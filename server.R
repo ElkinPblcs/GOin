@@ -9,6 +9,9 @@ server <- function(input, output, session) {
   selected_id_rv <- reactiveVal(NULL)
   log_rv <- reactiveVal("Listo. Presiona 'Pintar/Refrescar'.")
   
+  pull_env <- new.env(parent = globalenv())
+  source("R/pull/run.R", local = pull_env)
+
   output$log <- renderText(log_rv())
   
   send_gantt <- function(planned) {
@@ -110,8 +113,11 @@ server <- function(input, output, session) {
 
   
   observeEvent(input$btn_run, {
-    e <- new.env(parent = globalenv()); source("R/pull/run.R", local = e)
-    a_plan_rv(e$a_plan)
+    if (!exists("run_pull_pipeline", envir = pull_env, inherits = FALSE)) {
+      stop("No se encontró run_pull_pipeline en R/pull/run.R")
+    }
+    rr <- pull_env$run_pull_pipeline(preferred_lang = "es", pause_sec = 0.00, debug_sla = FALSE, anchor_date = Sys.Date())
+    a_plan_rv(rr$a_plan)
   }, ignoreInit = TRUE)
   
   
