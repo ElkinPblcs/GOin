@@ -72,7 +72,7 @@ server <- function(input, output, session) {
       ) %>%
       mutate(
         dur_h = dplyr::if_else(is.na(dur_h) | dur_h <= 0, TASK_FALLBACK_HOURS, dur_h),
-        end_dt = start_dt + lubridate::hours(dur_h)
+        end_dt = start_dt + as.difftime(dur_h, units = "hours")
       )
     
     # 1) filtro colaborador
