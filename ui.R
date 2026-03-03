@@ -227,23 +227,15 @@ ui <- fluidPage(
                     tabPanel("Disponibilidad",
                              div(class="microcopy",
                                  "Queda libre desde el fin de su última tarea (según filtros actuales)."),
-                             fluidRow(
-                               column(
-                                 5,
-                                 div(class = "portal",
-                                     div(class = "portal__body",
-                                         plotOutput("hours_pie", height = "440px")
-                                     )
+                             div(class = "availability-grid",
+                                 div(class = "availability-card",
+                                     div(class = "availability-card__title", "Carga pendiente por recurso"),
+                                     plotOutput("hours_pie", height = "500px")
+                                 ),
+                                 div(class = "availability-card",
+                                     div(class = "availability-card__title", "Detalle de disponibilidad"),
+                                     tableOutput("tbl_free")
                                  )
-                               ),
-                               column(
-                                 7,
-                                 div(class = "portal",
-                                     div(class = "portal__body",
-                                         tableOutput("tbl_free")
-                                     )
-                                 )
-                               )
                              )
                     )
                   ),

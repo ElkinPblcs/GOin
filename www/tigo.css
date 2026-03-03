@@ -181,3 +181,54 @@
     font-size: 12px;
   }
   
+
+/* Disponibilidad layout */
+.availability-grid{
+  display:grid;
+  grid-template-columns: minmax(320px, 42%) 1fr;
+  gap:14px;
+  margin-top:10px;
+}
+
+.availability-card{
+  background:#FBFCFF;
+  border:1px solid rgba(0,30,180,.10);
+  border-radius:12px;
+  box-shadow: 0 8px 18px rgba(0,30,180,.05);
+  padding:12px;
+}
+
+.availability-card__title{
+  font-size:13px;
+  font-weight:900;
+  color:var(--tigo-blue);
+  margin-bottom:8px;
+}
+
+#tbl_free table{
+  width:100%;
+  border-collapse:separate;
+  border-spacing:0;
+  font-size:12px;
+  background:#fff;
+  border:1px solid rgba(0,0,0,.08);
+  border-radius:10px;
+  overflow:hidden;
+}
+#tbl_free thead th{
+  background:#EEF2FF;
+  color:#1f2a44;
+  font-weight:800;
+  padding:8px 10px;
+  border-bottom:1px solid rgba(0,0,0,.08);
+}
+#tbl_free tbody td{
+  padding:8px 10px;
+  border-bottom:1px solid rgba(0,0,0,.06);
+}
+#tbl_free tbody tr:nth-child(even){ background:#FAFBFF; }
+#tbl_free tbody tr:hover{ background:#F3F7FF; }
+
+@media (max-width: 1100px){
+  .availability-grid{ grid-template-columns: 1fr; }
+}
