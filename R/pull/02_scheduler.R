@@ -250,7 +250,7 @@ schedule_tasks_from_today <- function(a, workers_allowed, anchor_date = Sys.Date
     }
     
     start <- w$next_free
-    end <- start + as.difftime(trow$tiempo_estimado_dias * 24, units="hours")
+    end <- start + as.difftime(trow$tiempo_estimado_dias * WORKDAY_HOURS, units="hours")
     
     assigned[[length(assigned)+1]] <- tibble::tibble(
       id = trow$id, collab_email_new = w$collab_email,
@@ -301,8 +301,8 @@ schedule_tasks_from_today <- function(a, workers_allowed, anchor_date = Sys.Date
       take_n <- min(cap, nrow(g) - idx + 1)
       chunk <- g[idx:(idx + take_n - 1), ]
       
-      starts <- block_start + as.difftime((seq_len(take_n)-1) * each_dur * 24, units="hours")
-      ends   <- block_start + as.difftime((seq_len(take_n))   * each_dur * 24, units="hours")
+      starts <- block_start + as.difftime((seq_len(take_n)-1) * each_dur * WORKDAY_HOURS, units="hours")
+      ends   <- block_start + as.difftime((seq_len(take_n))   * each_dur * WORKDAY_HOURS, units="hours")
       block_end <- max(ends, na.rm = TRUE)
       
       assigned[[length(assigned)+1]] <- tibble::tibble(

@@ -4,6 +4,7 @@ COR_CLIENT_SECRET <- "bfb89cd972de39f679be2636b4c5e5de"
 
 API_TZ <- "UTC"
 DAY_START_HOUR <- 9
+WORKDAY_HOURS <- 8
 COUNTRY_CODES <- c("GT","CR","NI","PA","SV","HN")
 WORK_ROLES <- c("Designer 1","Designer 2","Multimedia Producer")
 
