@@ -155,6 +155,17 @@ enrich_tasks_with_details <- function(token, task_ids, preferred_lang = "es", pa
   dplyr::bind_rows(rows)
 }
 
+
+coerce_archived_flag <- function(x) {
+  if (is.null(x) || length(x) == 0) return(FALSE)
+  if (is.list(x)) x <- x[[1]]
+  if (is.null(x) || length(x) == 0) return(FALSE)
+
+  if (is.logical(x)) return(isTRUE(x[1]))
+  v <- tolower(trimws(as.character(x[1])))
+  v %in% c("true", "1", "t", "yes", "y")
+}
+
 build_a_from_cor <- function(preferred_lang = "es", pause_sec = 0.00) {
   token <- get_token()
   
@@ -163,12 +174,7 @@ build_a_from_cor <- function(preferred_lang = "es", pause_sec = 0.00) {
 
   if ("archived" %in% names(tasks)) {
     tasks <- tasks %>%
-      dplyr::mutate(
-        archived = dplyr::case_when(
-          is.logical(archived) ~ archived,
-          TRUE ~ tolower(trimws(as.character(archived))) %in% c("true", "1", "t", "yes", "y")
-        )
-      ) %>%
+      dplyr::mutate(archived = vapply(archived, coerce_archived_flag, logical(1))) %>%
       dplyr::filter(archived == FALSE)
   }
   
