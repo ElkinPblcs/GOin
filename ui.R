@@ -227,8 +227,24 @@ ui <- fluidPage(
                     tabPanel("Disponibilidad",
                              div(class="microcopy",
                                  "Queda libre desde el fin de su última tarea (según filtros actuales)."),
-                             plotOutput("hours_pie", height = "260px"),
-                             tableOutput("tbl_free")
+                             fluidRow(
+                               column(
+                                 5,
+                                 div(class = "portal",
+                                     div(class = "portal__body",
+                                         plotOutput("hours_pie", height = "440px")
+                                     )
+                                 )
+                               ),
+                               column(
+                                 7,
+                                 div(class = "portal",
+                                     div(class = "portal__body",
+                                         tableOutput("tbl_free")
+                                     )
+                                 )
+                               )
+                             )
                     )
                   ),
                   div(class="portal__divider"),
