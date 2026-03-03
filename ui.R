@@ -230,7 +230,7 @@ ui <- fluidPage(
                              div(class = "availability-grid",
                                  div(class = "availability-card",
                                      div(class = "availability-card__title", "Carga pendiente por recurso"),
-                                     plotOutput("hours_pie", height = "500px")
+                                     plotly::plotlyOutput("hours_pie", height = "500px")
                                  ),
                                  div(class = "availability-card",
                                      div(class = "availability-card__title", "Detalle de disponibilidad"),

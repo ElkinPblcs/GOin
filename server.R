@@ -385,9 +385,9 @@ server <- function(input, output, session) {
   # ==========================
   # TAB: Disponibilidad (libre desde)
   # ==========================
-  output$hours_pie <- renderPlot({
+  output$hours_pie <- plotly::renderPlotly({
     tasks <- get_tasks_filtered()
-    if (is.null(tasks) || nrow(tasks) == 0) return(invisible(NULL))
+    if (is.null(tasks) || nrow(tasks) == 0) return(plotly::plotly_empty())
 
     pie_df <- tasks %>%
       mutate(resource_name = trimws(as.character(resource_name))) %>%
@@ -397,15 +397,24 @@ server <- function(input, output, session) {
       filter(is.finite(horas_pendientes), horas_pendientes > 0) %>%
       arrange(desc(horas_pendientes))
 
-    if (nrow(pie_df) == 0) return(invisible(NULL))
+    if (nrow(pie_df) == 0) return(plotly::plotly_empty())
 
-    labs <- paste0(pie_df$resource_name, " (", round(pie_df$horas_pendientes, 1), "h)")
-    pie(
-      pie_df$horas_pendientes,
-      labels = labs,
-      main = "Horas pendientes por recurso",
-      col = grDevices::hcl.colors(nrow(pie_df), "Set 3")
-    )
+    pie_df <- pie_df %>%
+      mutate(label = paste0(resource_name, " (", round(horas_pendientes, 1), "h)"))
+
+    plotly::plot_ly(
+      data = pie_df,
+      labels = ~label,
+      values = ~horas_pendientes,
+      type = "pie",
+      textinfo = "label+percent",
+      hovertemplate = "%{label}<br>Horas: %{value:.1f}<extra></extra>",
+      marker = list(colors = grDevices::hcl.colors(nrow(pie_df), "Set 3"))
+    ) %>%
+      plotly::layout(
+        title = list(text = "Horas pendientes por recurso", x = 0.02),
+        legend = list(orientation = "v")
+      )
   })
 
   output$tbl_free <- DT::renderDT({
