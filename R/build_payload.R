@@ -4,6 +4,30 @@ library(stringr)
 library(tibble)
 library(lubridate)
 
+
+detect_business_unit <- function(skill_names_chr) {
+  units <- c(
+    "Migra Pre2Pos",
+    "Base Development",
+    "Refresh Key Visual",
+    "Network / Coverage",
+    "FMC Gross",
+    "Gross",
+    "Reloads",
+    "Gross (low penetration)",
+    "Devices"
+  )
+
+  x <- safe_chr(skill_names_chr)
+
+  vapply(x, function(v) {
+    if (is.na(v) || trimws(v) == "") return("")
+    tags <- trimws(unlist(strsplit(v, "\\|", fixed = FALSE)))
+    hit <- units[units %in% tags]
+    if (length(hit) == 0) "" else hit[1]
+  }, character(1))
+}
+
 build_planned_from_a_plan <- function(a_plan) {
   if (is.null(a_plan) || nrow(a_plan) == 0) {
     return(list(tasks = tibble(), resources = tibble()))
@@ -16,6 +40,7 @@ build_planned_from_a_plan <- function(a_plan) {
   if (length(miss) > 0) {
     stop("a_plan no tiene estas columnas: ", paste(miss, collapse = ", "))
   }
+  if (!"skill_names" %in% colnames(a_plan)) a_plan$skill_names <- ""
   
   resources <- a_plan %>%
     mutate(
@@ -48,6 +73,8 @@ build_planned_from_a_plan <- function(a_plan) {
       skill_main = safe_chr(skill_main),
       typeTask_name = safe_chr(typeTask_name),
       tag = safe_chr(tag),
+      skill_names = safe_chr(skill_names),
+      business_unit = detect_business_unit(skill_names),
       pais = extract_country_from_tag(tag)
     ) %>%
     left_join(resources, by = "resource_id") %>%
@@ -55,7 +82,7 @@ build_planned_from_a_plan <- function(a_plan) {
     filter(!is.na(start_date) & start_date != "") %>%
     arrange(resource_id, start_date, id) %>%
     select(id, text, start_date, duration, resource_id, resource_name,
-           skill_main, typeTask_name, tag, pais, status, priority, description)
+           skill_main, typeTask_name, tag, skill_names, business_unit, pais, status, priority, description)
   
   list(tasks = tasks, resources = resources)
 }
