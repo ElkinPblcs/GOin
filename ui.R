@@ -227,6 +227,7 @@ ui <- fluidPage(
                     tabPanel("Disponibilidad",
                              div(class="microcopy",
                                  "Queda libre desde el fin de su última tarea (según filtros actuales)."),
+                             plotOutput("hours_pie", height = "260px"),
                              tableOutput("tbl_free")
                     )
                   ),

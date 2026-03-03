@@ -385,6 +385,29 @@ server <- function(input, output, session) {
   # ==========================
   # TAB: Disponibilidad (libre desde)
   # ==========================
+  output$hours_pie <- renderPlot({
+    tasks <- get_tasks_filtered()
+    if (is.null(tasks) || nrow(tasks) == 0) return(invisible(NULL))
+
+    pie_df <- tasks %>%
+      mutate(resource_name = trimws(as.character(resource_name))) %>%
+      filter(!is.na(resource_name), resource_name != "") %>%
+      group_by(resource_name) %>%
+      summarise(horas_pendientes = sum(dur_h, na.rm = TRUE), .groups = "drop") %>%
+      filter(is.finite(horas_pendientes), horas_pendientes > 0) %>%
+      arrange(desc(horas_pendientes))
+
+    if (nrow(pie_df) == 0) return(invisible(NULL))
+
+    labs <- paste0(pie_df$resource_name, " (", round(pie_df$horas_pendientes, 1), "h)")
+    pie(
+      pie_df$horas_pendientes,
+      labels = labs,
+      main = "Horas pendientes por recurso",
+      col = grDevices::hcl.colors(nrow(pie_df), "Set 3")
+    )
+  })
+
   output$tbl_free <- renderTable({
     planned <- planned_rv()
     if (is.null(planned) || is.null(planned$resources) || nrow(planned$resources) == 0) {
@@ -406,13 +429,12 @@ server <- function(input, output, session) {
       return(
         res %>%
           transmute(
-            resource_name,
-            resource_id,
-            libre_desde = NA_character_,
-            horas_asignadas = 0,
-            tareas = 0
+            Colaborador = resource_name,
+            `Libre desde` = NA_character_,
+            `Horas pendientes` = 0,
+            `# Tareas` = 0
           ) %>%
-          arrange(resource_name)
+          arrange(Colaborador)
       )
     }
     
@@ -429,11 +451,11 @@ server <- function(input, output, session) {
       mutate(
         libre_desde = dplyr::if_else(
           is.finite(as.numeric(libre_desde_dt)),
-          gsub("\\.", "", format(libre_desde_dt, "%b-%d %H:%M")),
+          format(libre_desde_dt, "%Y-%m-%d %H:%M"),
           NA_character_
         )
       ) %>%
-      select(resource_id, resource_name, libre_desde, horas_asignadas, tareas)
+      select(resource_id, resource_name, libre_desde_dt, libre_desde, horas_asignadas, tareas)
     
     out <- res %>%
       select(resource_id, resource_name) %>%
@@ -441,9 +463,18 @@ server <- function(input, output, session) {
       mutate(
         libre_desde = dplyr::coalesce(libre_desde, NA_character_),
         horas_asignadas = dplyr::coalesce(horas_asignadas, 0),
-        tareas = dplyr::coalesce(tareas, 0)
+        tareas = dplyr::coalesce(tareas, 0),
+        horas_asignadas = round(horas_asignadas, 1)
       ) %>%
-      arrange(resource_name)
+      arrange(dplyr::coalesce(libre_desde_dt, as.POSIXct("2999-12-31 23:59:59", tz = TZ_LOCAL)),
+              dplyr::desc(horas_asignadas),
+              resource_name) %>%
+      transmute(
+        Colaborador = resource_name,
+        `Libre desde` = libre_desde,
+        `Horas pendientes` = horas_asignadas,
+        `# Tareas` = tareas
+      )
     
     out
   }, striped = TRUE, bordered = TRUE, spacing = "s")
