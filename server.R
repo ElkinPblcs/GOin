@@ -46,8 +46,58 @@ server <- function(input, output, session) {
   selected_id_rv <- reactiveVal(NULL)
   log_rv <- reactiveVal("Listo. Presiona 'Pintar/Refrescar'.")
   comments_rv <- reactiveVal(load_comments())
+
+  country_catalog <- c(
+    "BO" = "Bolivia",
+    "CA" = "Centroamérica",
+    "CO" = "Colombia",
+    "CR" = "Costa Rica",
+    "HN" = "Honduras",
+    "NI" = "Nicaragua",
+    "PA" = "Panamá",
+    "PY" = "Paraguay",
+    "SV" = "El Salvador"
+  )
+
+  build_country_choices <- function() {
+    planned_countries <- character(0)
+    planned <- planned_rv()
+    if (!is.null(planned) && !is.null(planned$tasks) && nrow(planned$tasks) > 0 && "pais" %in% names(planned$tasks)) {
+      planned_countries <- planned$tasks %>%
+        mutate(pais = trimws(toupper(as.character(pais)))) %>%
+        filter(!is.na(pais), pais != "") %>%
+        pull(pais)
+    }
+
+    comment_countries <- comments_rv() %>%
+      mutate(country = trimws(toupper(as.character(country)))) %>%
+      filter(!is.na(country), country != "") %>%
+      pull(country)
+
+    all_codes <- sort(unique(c(names(country_catalog), planned_countries, comment_countries)))
+    labels <- ifelse(all_codes %in% names(country_catalog),
+                     paste0(all_codes, " · ", country_catalog[all_codes]),
+                     all_codes)
+
+    stats::setNames(all_codes, labels)
+  }
+
   
   output$log <- renderText(log_rv())
+  observe({
+    choices <- build_country_choices()
+    current <- isolate(input$comment_country)
+    selected <- if (!is.null(current) && trimws(as.character(current)) != "") current else NULL
+
+    updateSelectizeInput(
+      session,
+      "comment_country",
+      choices = choices,
+      selected = selected,
+      server = TRUE
+    )
+  })
+
   
   send_gantt <- function(planned) {
     tasks <- planned$tasks %>%
@@ -580,7 +630,7 @@ server <- function(input, output, session) {
     comments_rv(load_comments())
 
     updateTabsetPanel(session, "tabs_main", selected = "Comentarios")
-    updateTextInput(session, "comment_country", value = country)
+    updateSelectizeInput(session, "comment_country", selected = country, server = TRUE)
     updateTextAreaInput(session, "comment_text", value = "")
     showNotification("Comentario guardado en la VM.", type = "message", duration = 4)
   }, ignoreInit = TRUE)
@@ -589,13 +639,21 @@ server <- function(input, output, session) {
     comments <- comments_rv()
     if (is.null(comments) || nrow(comments) == 0) return(NULL)
 
-    comments %>%
+    out <- comments %>%
       mutate(
         comment_date = suppressWarnings(as.Date(comment_date)),
         country = trimws(toupper(as.character(country))),
         comment = as.character(comment),
         saved_at = as.character(saved_at)
-      ) %>%
+      )
+
+    csel <- input$filter_country
+    if (!is.null(csel) && length(csel) > 0 && !("__ALL__" %in% csel)) {
+      csel <- trimws(toupper(as.character(csel)))
+      out <- out %>% filter(country %in% csel)
+    }
+
+    out %>%
       arrange(desc(comment_date), desc(saved_at)) %>%
       transmute(
         Fecha = ifelse(is.na(comment_date), "", as.character(comment_date)),
@@ -609,7 +667,7 @@ server <- function(input, output, session) {
     comments_tbl <- comments_view()
     if (is.null(comments_tbl) || nrow(comments_tbl) == 0) {
       return(DT::datatable(
-        data.frame(Mensaje = "Aún no hay comentarios guardados."),
+        data.frame(Mensaje = "No hay comentarios para el filtro de país actual."),
         rownames = FALSE,
         options = list(dom = "t", paging = FALSE)
       ))
@@ -617,6 +675,7 @@ server <- function(input, output, session) {
 
     DT::datatable(
       comments_tbl,
+      filter = "top",
       rownames = FALSE,
       class = "compact stripe hover",
       escape = TRUE,

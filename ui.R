@@ -248,7 +248,12 @@ ui <- fluidPage(
                                          dateInput("comment_date", "Fecha", value = Sys.Date(), width = "100%")
                                      ),
                                      div(class = "comments-form__row",
-                                         textInput("comment_country", "País", placeholder = "Ej: CO, CR, PA", width = "100%")
+                                         selectizeInput("comment_country", "País (etiqueta)",
+                                                      choices = NULL, selected = NULL, multiple = FALSE,
+                                                      options = list(create = TRUE,
+                                                                     placeholder = "Selecciona o escribe etiqueta país (ej: CO)",
+                                                                     persist = FALSE),
+                                                      width = "100%")
                                      ),
                                      div(class = "comments-form__row",
                                          textAreaInput("comment_text", "Comentario", rows = 6,
@@ -258,7 +263,7 @@ ui <- fluidPage(
                                  ),
                                  div(class = "comments-list",
                                      div(class = "comments-form__title", "Historial guardado en VM"),
-                                     div(class = "microcopy", "Tip: haz click en una fila para ver el comentario completo."),
+                                     div(class = "microcopy", "Tip: busca por texto y haz click en una fila para ver el comentario completo. Esta lista respeta el filtro de país de la izquierda."),
                                      DT::DTOutput("tbl_comments"),
                                      div(class = "portal__divider"),
                                      uiOutput("comment_details")
