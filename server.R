@@ -4,19 +4,40 @@ library(dplyr)
 library(lubridate)
 
 server <- function(input, output, session) {
-  fallback_comments_dir <- file.path(tempdir(), "goin_comments")
-  comments_dir <- Sys.getenv("COMMENTS_DATA_DIR", unset = "data")
-  if (!dir.exists(comments_dir)) {
+  preferred_dir <- trimws(Sys.getenv("COMMENTS_DATA_DIR", unset = ""))
+  stable_fallback_dir <- path.expand("~/.goin_comments")
+  emergency_dir <- file.path(tempdir(), "goin_comments")
+
+  candidate_dirs <- unique(Filter(nzchar, c(preferred_dir, "data", stable_fallback_dir, emergency_dir)))
+
+  can_write_dir <- function(dir_path) {
     ok_dir <- tryCatch({
-      dir.create(comments_dir, recursive = TRUE, showWarnings = FALSE)
+      dir.create(dir_path, recursive = TRUE, showWarnings = FALSE)
+      TRUE
+    }, error = function(e) FALSE)
+    if (!isTRUE(ok_dir) && !dir.exists(dir_path)) return(FALSE)
+
+    probe <- file.path(dir_path, ".write_test")
+    ok_write <- tryCatch({
+      writeLines("ok", probe, useBytes = TRUE)
+      unlink(probe)
+      TRUE
     }, error = function(e) FALSE)
 
-    if (!isTRUE(ok_dir) && !dir.exists(comments_dir)) {
-      comments_dir <- fallback_comments_dir
-      dir.create(comments_dir, recursive = TRUE, showWarnings = FALSE)
-      showNotification("No se pudo usar carpeta de datos principal; usando almacenamiento temporal en VM.", type = "warning", duration = 8)
+    isTRUE(ok_write)
+  }
+
+  resolved_dir <- NULL
+  for (dir_opt in candidate_dirs) {
+    if (can_write_dir(dir_opt)) {
+      resolved_dir <- dir_opt
+      break
     }
   }
+
+  if (is.null(resolved_dir)) stop("No hay una carpeta escribible para comentarios en esta VM.")
+
+  comments_dir <- resolved_dir
   comments_path <- file.path(comments_dir, "comments_log.csv")
 
   load_comments <- function() {
@@ -59,20 +80,27 @@ server <- function(input, output, session) {
       return(list(ok = TRUE, fallback_used = FALSE))
     }
 
-    # Si existe la carpeta pero no es escribible en VM, cae aquí.
-    dir.create(fallback_comments_dir, recursive = TRUE, showWarnings = FALSE)
-    fallback_path <- file.path(fallback_comments_dir, "comments_log.csv")
+    # Re-resolver carpeta escribible estable si la actual dejó de funcionar.
+    next_dir <- NULL
+    for (dir_opt in candidate_dirs) {
+      if (dir_opt != comments_dir && can_write_dir(dir_opt)) {
+        next_dir <- dir_opt
+        break
+      }
+    }
 
-    fallback_ok <- tryCatch({
-      write.csv(df, fallback_path, row.names = FALSE, fileEncoding = "UTF-8")
+    if (is.null(next_dir)) stop("No fue posible guardar comments_log.csv en la VM.")
+
+    comments_dir <<- next_dir
+    comments_path <<- file.path(comments_dir, "comments_log.csv")
+
+    retry_ok <- tryCatch({
+      write.csv(df, comments_path, row.names = FALSE, fileEncoding = "UTF-8")
       TRUE
     }, error = function(e) FALSE)
 
-    if (!isTRUE(fallback_ok)) {
-      stop("No fue posible guardar comments_log.csv en la VM.")
-    }
+    if (!isTRUE(retry_ok)) stop("No fue posible guardar comments_log.csv en la VM.")
 
-    comments_path <<- fallback_path
     list(ok = TRUE, fallback_used = TRUE)
   }
 
@@ -673,7 +701,7 @@ server <- function(input, output, session) {
       comments_rv(load_comments())
 
       if (isTRUE(save_result$fallback_used)) {
-        showNotification("Guardado en almacenamiento temporal de VM por permisos de carpeta.", type = "warning", duration = 8)
+        showNotification(paste0("Guardado en carpeta alternativa: ", comments_dir), type = "warning", duration = 8)
       }
 
       updateTabsetPanel(session, "tabs_main", selected = "Comentarios")
