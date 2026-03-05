@@ -55,15 +55,16 @@ build_tasks_payload <- function(a_plan, start_col, end_col) {
   
   tasks <- a_plan %>%
     mutate(
+      start_dt = parse_datetime_safe(.data[[start_col]], tz = TZ_LOCAL),
+      end_dt = parse_datetime_safe(.data[[end_col]], tz = TZ_LOCAL),
       id = as.character(.data$id),
       text = safe_chr(title),
       resource_id = if_else(is.na(collab_email_plan) | collab_email_plan == "",
                             "SIN_ASIGNAR", as.character(collab_email_plan)),
-      start_date = fmt_gantt(.data[[start_col]]),
+      start_date = fmt_gantt(start_dt),
       duration = if_else(
-        !is.na(.data[[start_col]]) & !is.na(.data[[end_col]]),
-        as.numeric(difftime(as.POSIXct(.data[[end_col]], tz = TZ_LOCAL),
-                            as.POSIXct(.data[[start_col]], tz = TZ_LOCAL),
+        !is.na(start_dt) & !is.na(end_dt),
+        as.numeric(difftime(end_dt, start_dt,
                             units = "hours")),
         NA_real_
       ),
