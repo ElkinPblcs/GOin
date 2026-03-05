@@ -136,8 +136,14 @@ extract_typeTask_name <- function(typeTask_obj) {
   NA_character_
 }
 
-fetch_task_details_chunk <- function(task_ids_chunk, token, preferred_lang = "es", pause_sec = 0.00) {
-  lapply(task_ids_chunk, function(tid) {
+enrich_tasks_with_details <- function(token, task_ids, preferred_lang = "es", pause_sec = 0.00,
+                                      workers = 2, min_parallel_tasks = 40) {
+  task_ids <- unique(as.character(task_ids))
+  if (length(task_ids) == 0) {
+    return(tibble::tibble(id = character(), skill_names = character(), typeTask_name = character()))
+  }
+
+  fetch_one <- function(tid) {
     if (!is.null(pause_sec) && pause_sec > 0) Sys.sleep(pause_sec)
     payload <- tryCatch(get_task_by_id(token, tid), error = function(e) NULL)
     if (is.null(payload)) {
@@ -148,52 +154,18 @@ fetch_task_details_chunk <- function(task_ids_chunk, token, preferred_lang = "es
       skill_names = extract_skills_one_lang(payload$skill, preferred_lang = preferred_lang),
       typeTask_name = extract_typeTask_name(payload$typeTask)
     )
-  })
-}
-
-enrich_tasks_with_details <- function(token, task_ids, preferred_lang = "es", pause_sec = 0.00,
-                                      workers = 2, min_parallel_tasks = 40) {
-  task_ids <- unique(as.character(task_ids))
-  if (length(task_ids) == 0) return(tibble::tibble(id = character(), skill_names = character(), typeTask_name = character()))
-
-  workers <- max(1L, as.integer(workers))
-  use_parallel <- workers > 1L && length(task_ids) >= min_parallel_tasks
-
-  if (!use_parallel) {
-    rows <- fetch_task_details_chunk(task_ids, token = token, preferred_lang = preferred_lang, pause_sec = pause_sec)
-    return(dplyr::bind_rows(rows))
   }
 
-  workers <- min(workers, length(task_ids))
-  id_chunks <- split(task_ids, cut(seq_along(task_ids), breaks = workers, labels = FALSE))
+  workers <- max(1L, as.integer(workers))
+  use_parallel <- workers > 1L && length(task_ids) >= min_parallel_tasks && .Platform$OS.type == "unix"
 
-  cl <- parallel::makeCluster(workers)
-  on.exit(parallel::stopCluster(cl), add = TRUE)
+  rows <- if (use_parallel) {
+    parallel::mclapply(task_ids, fetch_one, mc.cores = workers)
+  } else {
+    lapply(task_ids, fetch_one)
+  }
 
-  parallel::clusterEvalQ(cl, {
-    library(dplyr)
-    library(tibble)
-    library(stringr)
-    library(jsonlite)
-    NULL
-  })
-
-  parallel::clusterExport(
-    cl,
-    varlist = c("get_task_by_id", "extract_skills_one_lang", "extract_typeTask_name", "fetch_task_details_chunk"),
-    envir = environment()
-  )
-
-  rows_nested <- parallel::parLapply(
-    cl,
-    X = id_chunks,
-    fun = fetch_task_details_chunk,
-    token = token,
-    preferred_lang = preferred_lang,
-    pause_sec = pause_sec
-  )
-
-  dplyr::bind_rows(unlist(rows_nested, recursive = FALSE))
+  dplyr::bind_rows(rows)
 }
 
 
