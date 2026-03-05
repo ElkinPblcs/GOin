@@ -244,3 +244,42 @@
 #tbl_free table.dataTable tbody tr:nth-child(even){ background:#FAFBFF; }
 #tbl_free table.dataTable tbody tr:hover{ background:#F3F7FF !important; }
 #tbl_free .dataTables_info{ color:#475569; padding-top:8px; }
+
+/* Comentarios tab */
+.comments-wrap{
+  display:grid;
+  grid-template-columns: minmax(320px, 36%) 1fr;
+  gap:14px;
+  margin-top:10px;
+}
+
+.comments-form,
+.comments-list{
+  background:#FBFCFF;
+  border:1px solid rgba(0,30,180,.10);
+  border-radius:12px;
+  box-shadow: 0 8px 18px rgba(0,30,180,.05);
+  padding:14px;
+}
+
+.comments-form__title{
+  font-size:14px;
+  font-weight:900;
+  color:var(--tigo-blue);
+  margin-bottom:10px;
+}
+
+.comments-form__row{ margin-bottom:8px; }
+
+#tbl_comments .dataTables_wrapper{ font-size:12px; }
+#tbl_comments table.dataTable thead th{
+  background:#EEF2FF !important;
+  color:#1f2a44 !important;
+  border-bottom:1px solid rgba(0,0,0,.08) !important;
+}
+#tbl_comments table.dataTable tbody tr:nth-child(even){ background:#FAFBFF; }
+#tbl_comments table.dataTable tbody tr:hover{ background:#F3F7FF !important; }
+
+@media (max-width: 1100px){
+  .comments-wrap{ grid-template-columns: 1fr; }
+}

@@ -4,10 +4,48 @@ library(dplyr)
 library(lubridate)
 
 server <- function(input, output, session) {
+  comments_path <- file.path("data", "comments_log.csv")
+  if (!dir.exists("data")) dir.create("data", recursive = TRUE, showWarnings = FALSE)
+
+  load_comments <- function() {
+    if (!file.exists(comments_path)) {
+      return(data.frame(
+        saved_at = character(),
+        comment_date = character(),
+        country = character(),
+        comment = character(),
+        stringsAsFactors = FALSE
+      ))
+    }
+
+    out <- tryCatch(
+      read.csv(comments_path, stringsAsFactors = FALSE, encoding = "UTF-8"),
+      error = function(e) data.frame(
+        saved_at = character(),
+        comment_date = character(),
+        country = character(),
+        comment = character(),
+        stringsAsFactors = FALSE
+      )
+    )
+
+    required_cols <- c("saved_at", "comment_date", "country", "comment")
+    for (cn in required_cols) {
+      if (!cn %in% names(out)) out[[cn]] <- ""
+    }
+
+    out %>% dplyr::select(dplyr::all_of(required_cols))
+  }
+
+  save_comments <- function(df) {
+    write.csv(df, comments_path, row.names = FALSE, fileEncoding = "UTF-8")
+  }
+
   planned_rv <- reactiveVal(NULL)
   a_plan_rv <- reactiveVal(NULL)
   selected_id_rv <- reactiveVal(NULL)
   log_rv <- reactiveVal("Listo. Presiona 'Pintar/Refrescar'.")
+  comments_rv <- reactiveVal(load_comments())
   
   output$log <- renderText(log_rv())
   
@@ -517,6 +555,74 @@ server <- function(input, output, session) {
   
   
   
+  observeEvent(input$btn_save_comment, {
+    req(input$comment_date, input$comment_country, input$comment_text)
+
+    country <- trimws(toupper(as.character(input$comment_country)))
+    comment_text <- trimws(as.character(input$comment_text))
+
+    if (country == "" || comment_text == "") {
+      showNotification("Completa país y comentario antes de guardar.", type = "warning", duration = 5)
+      return()
+    }
+
+    comments <- comments_rv()
+    new_row <- data.frame(
+      saved_at = format(Sys.time(), "%Y-%m-%d %H:%M:%S"),
+      comment_date = as.character(input$comment_date),
+      country = country,
+      comment = comment_text,
+      stringsAsFactors = FALSE
+    )
+
+    comments <- dplyr::bind_rows(comments, new_row)
+    save_comments(comments)
+    comments_rv(load_comments())
+
+    updateTextInput(session, "comment_country", value = country)
+    updateTextAreaInput(session, "comment_text", value = "")
+    showNotification("Comentario guardado en la VM.", type = "message", duration = 4)
+  }, ignoreInit = TRUE)
+
+  output$tbl_comments <- DT::renderDT({
+    comments <- comments_rv()
+    if (is.null(comments) || nrow(comments) == 0) {
+      return(DT::datatable(
+        data.frame(Mensaje = "Aún no hay comentarios guardados."),
+        rownames = FALSE,
+        options = list(dom = "t", paging = FALSE)
+      ))
+    }
+
+    comments_view <- comments %>%
+      mutate(
+        comment_date = suppressWarnings(as.Date(comment_date)),
+        country = trimws(toupper(as.character(country))),
+        comment = as.character(comment)
+      ) %>%
+      arrange(desc(comment_date), desc(saved_at)) %>%
+      transmute(
+        Fecha = ifelse(is.na(comment_date), "", as.character(comment_date)),
+        País = country,
+        Comentario = comment,
+        `Guardado en` = saved_at
+      )
+
+    DT::datatable(
+      comments_view,
+      rownames = FALSE,
+      class = "compact stripe hover",
+      escape = TRUE,
+      options = list(
+        pageLength = 8,
+        lengthChange = FALSE,
+        autoWidth = TRUE,
+        order = list(list(0, "desc"), list(3, "desc")),
+        dom = "tip"
+      )
+    )
+  })
+
   # ==========================
   # Descargar Excel (tabla del Gantt con filtros)
   # ==========================

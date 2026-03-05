@@ -237,6 +237,28 @@ ui <- fluidPage(
                                      DT::DTOutput("tbl_free")
                                  )
                              )
+                    ),
+                    tabPanel("Comentarios",
+                             div(class = "comments-wrap",
+                                 div(class = "comments-form",
+                                     div(class = "comments-form__title", "Registrar comentario"),
+                                     div(class = "comments-form__row",
+                                         dateInput("comment_date", "Fecha", value = Sys.Date(), width = "100%")
+                                     ),
+                                     div(class = "comments-form__row",
+                                         textInput("comment_country", "País", placeholder = "Ej: CO, CR, PA", width = "100%")
+                                     ),
+                                     div(class = "comments-form__row",
+                                         textAreaInput("comment_text", "Comentario", rows = 6,
+                                                       placeholder = "Escribe aquí el comentario...", width = "100%")
+                                     ),
+                                     actionButton("btn_save_comment", "Guardar comentario", class = "btn-tigo btn-tigo--primary")
+                                 ),
+                                 div(class = "comments-list",
+                                     div(class = "comments-form__title", "Historial guardado en VM"),
+                                     DT::DTOutput("tbl_comments")
+                                 )
+                             )
                     )
                   ),
                   div(class="portal__divider"),
