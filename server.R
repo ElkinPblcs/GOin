@@ -579,14 +579,14 @@ server <- function(input, output, session) {
     save_comments(comments)
     comments_rv(load_comments())
 
-    updateTabsetPanel(session, "tabs_main", selected = "comments_tab")
+    updateTabsetPanel(session, "tabs_main", selected = "Comentarios")
     updateTextInput(session, "comment_country", value = country)
     updateTextAreaInput(session, "comment_text", value = "")
     showNotification("Comentario guardado en la VM.", type = "message", duration = 4)
   }, ignoreInit = TRUE)
 
   observeEvent(input$go_comments, {
-    updateTabsetPanel(session, "tabs_main", selected = "comments_tab")
+    updateTabsetPanel(session, "tabs_main", selected = "Comentarios")
   }, ignoreInit = TRUE)
 
   output$tbl_comments <- DT::renderDT({
