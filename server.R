@@ -4,6 +4,7 @@ library(dplyr)
 library(lubridate)
 
 server <- function(input, output, session) {
+  fallback_comments_dir <- file.path(tempdir(), "goin_comments")
   comments_dir <- Sys.getenv("COMMENTS_DATA_DIR", unset = "data")
   if (!dir.exists(comments_dir)) {
     ok_dir <- tryCatch({
@@ -11,7 +12,7 @@ server <- function(input, output, session) {
     }, error = function(e) FALSE)
 
     if (!isTRUE(ok_dir) && !dir.exists(comments_dir)) {
-      comments_dir <- file.path(tempdir(), "goin_comments")
+      comments_dir <- fallback_comments_dir
       dir.create(comments_dir, recursive = TRUE, showWarnings = FALSE)
       showNotification("No se pudo usar carpeta de datos principal; usando almacenamiento temporal en VM.", type = "warning", duration = 8)
     }
@@ -49,14 +50,30 @@ server <- function(input, output, session) {
   }
 
   save_comments <- function(df) {
-    ok <- tryCatch({
+    primary_ok <- tryCatch({
       write.csv(df, comments_path, row.names = FALSE, fileEncoding = "UTF-8")
       TRUE
-    }, error = function(e) {
-      FALSE
-    })
+    }, error = function(e) FALSE)
 
-    if (!ok) stop("No fue posible guardar comments_log.csv en la VM.")
+    if (isTRUE(primary_ok)) {
+      return(list(ok = TRUE, fallback_used = FALSE))
+    }
+
+    # Si existe la carpeta pero no es escribible en VM, cae aquí.
+    dir.create(fallback_comments_dir, recursive = TRUE, showWarnings = FALSE)
+    fallback_path <- file.path(fallback_comments_dir, "comments_log.csv")
+
+    fallback_ok <- tryCatch({
+      write.csv(df, fallback_path, row.names = FALSE, fileEncoding = "UTF-8")
+      TRUE
+    }, error = function(e) FALSE)
+
+    if (!isTRUE(fallback_ok)) {
+      stop("No fue posible guardar comments_log.csv en la VM.")
+    }
+
+    comments_path <<- fallback_path
+    list(ok = TRUE, fallback_used = TRUE)
   }
 
   planned_rv <- reactiveVal(NULL)
@@ -652,8 +669,12 @@ server <- function(input, output, session) {
       )
 
       comments <- dplyr::bind_rows(comments, new_row)
-      save_comments(comments)
+      save_result <- save_comments(comments)
       comments_rv(load_comments())
+
+      if (isTRUE(save_result$fallback_used)) {
+        showNotification("Guardado en almacenamiento temporal de VM por permisos de carpeta.", type = "warning", duration = 8)
+      }
 
       updateTabsetPanel(session, "tabs_main", selected = "Comentarios")
       updateSelectizeInput(session, "comment_country", selected = country, server = TRUE)
