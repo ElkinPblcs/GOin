@@ -119,6 +119,28 @@ ui <- fluidPage(
         });
       }
 
+
+      function safeRefreshGantt(g){
+        if (!g) return;
+        try {
+          if (typeof g.setSizes === 'function') g.setSizes();
+          g.render();
+        } catch (e) {}
+      }
+
+      function isVisible(el){
+        return !!(el && el.offsetParent !== null);
+      }
+
+      function refreshVisibleGantt(){
+        if (window.__gantt_inited && isVisible(document.getElementById('gantt_here'))) {
+          safeRefreshGantt(gantt);
+        }
+        if (window.__gantt_original_inited && isVisible(document.getElementById('gantt_original_here'))) {
+          safeRefreshGantt(window.gantt_original);
+        }
+      }
+
       function mapTaskColors(tasks){
         return (tasks || []).map(function(t){
           var c = statusColor(t.status);
@@ -139,6 +161,7 @@ ui <- fluidPage(
         gantt.clearAll();
         gantt.parse({ data: tasks, links: [] });
         gantt.render();
+        setTimeout(refreshVisibleGantt, 0);
       }
 
       function initOrUpdateOriginalGantt(tasks){
@@ -154,6 +177,7 @@ ui <- fluidPage(
         window.gantt_original.clearAll();
         window.gantt_original.parse({ data: tasks, links: [] });
         window.gantt_original.render();
+        setTimeout(refreshVisibleGantt, 0);
       }
 
       Shiny.addCustomMessageHandler('gantt_data', function(payload){
@@ -164,6 +188,14 @@ ui <- fluidPage(
         initOrUpdateOriginalGantt(payload.tasks || []);
       });
       
+      document.addEventListener('shown.bs.tab', function(){
+        setTimeout(refreshVisibleGantt, 0);
+      });
+
+      window.addEventListener('resize', function(){
+        refreshVisibleGantt();
+      });
+
       // ✅ Botón: Reorganizar (snapshot -> Shiny)
       document.addEventListener('click', function(ev){
         if (ev.target && ev.target.id === 'btn_pack') {
