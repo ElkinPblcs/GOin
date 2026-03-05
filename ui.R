@@ -202,7 +202,7 @@ ui <- fluidPage(
                       actionButton("btn_run",  "Actualizar a_plan (run.R)", class="btn-tigo btn-tigo--primary"),
                       actionButton("btn_draw", "Pintar / Refrescar",        class="btn-tigo btn-tigo--ghost"),
                       actionButton("btn_pack", "Reorganizar (sin huecos)",  class="btn-tigo btn-tigo--ghost"),
-                      actionButton("go_comments", "Ir a pestaña Comentarios", class="btn-tigo btn-tigo--ghost"),
+                      actionButton("go_comments", "📝 Abrir Comentarios", class="btn-tigo btn-tigo--primary"),
                       downloadButton("btn_dl_xlsx", "Descargar Excel (Gantt)", class="btn-tigo btn-tigo--ghost")
                   ),
                   div(class="portal__divider"),
@@ -217,16 +217,17 @@ ui <- fluidPage(
           div(class="portal",
               div(class="portal__header",
                   div(class="portal__title", "Timeline"),
-                  div(class="portal__hint", "Arrastra tareas para reencadenar visualmente")
+                  div(class="portal__hint", "Arrastra tareas para reencadenar visualmente · usa la pestaña 📝 Comentarios para guardar notas por país/fecha")
               ),
               div(class="portal__body",
                   tabsetPanel(
                     id = "tabs_main",
-                    type = "pills",
-                    tabPanel("Gantt",
+                    type = "tabs",
+                    selected = "gantt_tab",
+                    tabPanel("Gantt", value = "gantt_tab",
                              div(id="gantt_here", class="gantt-portal")
                     ),
-                    tabPanel("Disponibilidad",
+                    tabPanel("Disponibilidad", value = "availability_tab",
                              div(class="microcopy",
                                  "Queda libre desde el fin de su última tarea (según filtros actuales)."),
                              div(class = "availability-grid",
@@ -240,7 +241,7 @@ ui <- fluidPage(
                                  )
                              )
                     ),
-                    tabPanel(title = tagList(icon("comments"), "Comentarios"), value = "comments_tab",
+                    tabPanel("📝 Comentarios", value = "comments_tab",
                              div(class = "comments-wrap",
                                  div(class = "comments-form",
                                      div(class = "comments-form__title", "Registrar comentario"),

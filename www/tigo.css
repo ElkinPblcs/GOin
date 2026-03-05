@@ -304,3 +304,17 @@
 @media (max-width: 1100px){
   .comments-wrap{ grid-template-columns: 1fr; }
 }
+
+
+/* tabs visibility */
+.nav-tabs{ margin-bottom:10px; }
+.nav-tabs > li > a{
+  font-weight:800;
+  color:var(--tigo-blue);
+}
+.nav-tabs > li.active > a,
+.nav-tabs > li.active > a:focus,
+.nav-tabs > li.active > a:hover{
+  color:var(--tigo-blue);
+  border-top:2px solid var(--tigo-blue);
+}
