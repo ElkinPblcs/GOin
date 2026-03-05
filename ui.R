@@ -52,6 +52,8 @@ ui <- fluidPage(
 
       window.__gantt_inited = false;
       window.__gantt_original_inited = false;
+      window.__gantt_tasks_cache = [];
+      window.__gantt_original_tasks_cache = [];
 
       function sendSelectedId(id){
         if (!window.Shiny) return;
@@ -59,17 +61,17 @@ ui <- fluidPage(
       }
 
       function configureGantt(g){
-        g.config.date_format = \"%Y-%m-%d %H:%i\";
-        g.config.duration_unit = \"hour\";
+        g.config.date_format = '%Y-%m-%d %H:%i';
+        g.config.duration_unit = 'hour';
 
         g.config.drag_move = true;
         g.config.drag_resize = true;
         g.config.drag_progress = false;
 
-        g.config.scale_unit = \"day\";
-        g.config.date_scale = \"%d %b\";
-        g.config.subscales = [{ unit: \"hour\", step: 3, date: \"%H\" }];
-        g.config.min_column_width = 105; // ~1.5x ancho diario
+        g.config.scale_unit = 'day';
+        g.config.date_scale = '%d %b';
+        g.config.subscales = [{ unit: 'hour', step: 3, date: '%H' }];
+        g.config.min_column_width = 105;
 
         g.config.grid_width = 520;
         g.config.columns = [
@@ -86,14 +88,8 @@ ui <- fluidPage(
           return 'background:' + c + ';border-color:' + c + ';--task-status-color:' + c + ';' + txt;
         };
 
-        g.attachEvent('onTaskClick', function(id, e){
-          sendSelectedId(id);
-          return true;
-        });
-        g.attachEvent('onTaskRowClick', function(id){
-          sendSelectedId(id);
-          return true;
-        });
+        g.attachEvent('onTaskClick', function(id, e){ sendSelectedId(id); return true; });
+        g.attachEvent('onTaskRowClick', function(id){ sendSelectedId(id); return true; });
 
         g.attachEvent('onBeforeTaskChanged', function(id, mode, task){
           task.$old_resource_id = task.resource_id;
@@ -119,6 +115,19 @@ ui <- fluidPage(
         });
       }
 
+      function mapTaskColors(tasks){
+        return (tasks || []).map(function(t){
+          var c = statusColor(t.status);
+          t.color = c;
+          t.progressColor = c;
+          if (statusKey(t.status) === 'en_proceso') t.textColor = '#000';
+          return t;
+        });
+      }
+
+      function isVisible(el){
+        return !!(el && el.offsetParent !== null);
+      }
 
       function safeRefreshGantt(g){
         if (!g) return;
@@ -128,8 +137,35 @@ ui <- fluidPage(
         } catch (e) {}
       }
 
-      function isVisible(el){
-        return !!(el && el.offsetParent !== null);
+      function ensurePlannedGantt(){
+        if (window.__gantt_inited) return;
+        configureGantt(gantt);
+        gantt.init('gantt_here');
+        window.__gantt_inited = true;
+      }
+
+      function ensureOriginalGantt(){
+        if (window.__gantt_original_inited) return;
+        window.gantt_original = window.Gantt.getGanttInstance();
+        configureGantt(window.gantt_original);
+        window.gantt_original.config.drag_move = false;
+        window.gantt_original.config.drag_resize = false;
+        window.gantt_original.init('gantt_original_here');
+        window.__gantt_original_inited = true;
+      }
+
+      function renderPlannedFromCache(){
+        ensurePlannedGantt();
+        gantt.clearAll();
+        gantt.parse({ data: window.__gantt_tasks_cache || [], links: [] });
+        safeRefreshGantt(gantt);
+      }
+
+      function renderOriginalFromCache(){
+        ensureOriginalGantt();
+        window.gantt_original.clearAll();
+        window.gantt_original.parse({ data: window.__gantt_original_tasks_cache || [], links: [] });
+        safeRefreshGantt(window.gantt_original);
       }
 
       function refreshVisibleGantt(){
@@ -141,61 +177,35 @@ ui <- fluidPage(
         }
       }
 
-      function mapTaskColors(tasks){
-        return (tasks || []).map(function(t){
-          var c = statusColor(t.status);
-          t.color = c;
-          t.progressColor = c;
-          if (statusKey(t.status) === 'en_proceso') t.textColor = '#000';
-          return t;
-        });
-      }
-
-      function initOrUpdateGantt(tasks){
-        tasks = mapTaskColors(tasks);
-        if (!window.__gantt_inited) {
-          configureGantt(gantt);
-          gantt.init('gantt_here');
-          window.__gantt_inited = true;
-        }
-        gantt.clearAll();
-        gantt.parse({ data: tasks, links: [] });
-        gantt.render();
-        setTimeout(refreshVisibleGantt, 0);
-      }
-
-      function initOrUpdateOriginalGantt(tasks){
-        tasks = mapTaskColors(tasks);
-        if (!window.__gantt_original_inited) {
-          window.gantt_original = window.Gantt.getGanttInstance();
-          configureGantt(window.gantt_original);
-          window.gantt_original.config.drag_move = false;
-          window.gantt_original.config.drag_resize = false;
-          window.gantt_original.init('gantt_original_here');
-          window.__gantt_original_inited = true;
-        }
-        window.gantt_original.clearAll();
-        window.gantt_original.parse({ data: tasks, links: [] });
-        window.gantt_original.render();
-        setTimeout(refreshVisibleGantt, 0);
-      }
-
       Shiny.addCustomMessageHandler('gantt_data', function(payload){
-        initOrUpdateGantt(payload.tasks || []);
+        window.__gantt_tasks_cache = mapTaskColors(payload.tasks || []);
+        if (isVisible(document.getElementById('gantt_here'))) {
+          renderPlannedFromCache();
+        }
       });
 
       Shiny.addCustomMessageHandler('gantt_original_data', function(payload){
-        initOrUpdateOriginalGantt(payload.tasks || []);
+        window.__gantt_original_tasks_cache = mapTaskColors(payload.tasks || []);
+        if (isVisible(document.getElementById('gantt_original_here'))) {
+          renderOriginalFromCache();
+        }
       });
-      
+
       document.addEventListener('shown.bs.tab', function(){
-        setTimeout(refreshVisibleGantt, 0);
+        setTimeout(function(){
+          if (isVisible(document.getElementById('gantt_here')) && window.__gantt_tasks_cache) {
+            renderPlannedFromCache();
+          }
+          if (isVisible(document.getElementById('gantt_original_here')) && window.__gantt_original_tasks_cache) {
+            renderOriginalFromCache();
+          }
+          refreshVisibleGantt();
+        }, 0);
       });
 
       window.addEventListener('resize', function(){
         refreshVisibleGantt();
       });
-
       // ✅ Botón: Reorganizar (snapshot -> Shiny)
       document.addEventListener('click', function(ev){
         if (ev.target && ev.target.id === 'btn_pack') {
