@@ -202,6 +202,7 @@ ui <- fluidPage(
                       actionButton("btn_run",  "Actualizar a_plan (run.R)", class="btn-tigo btn-tigo--primary"),
                       actionButton("btn_draw", "Pintar / Refrescar",        class="btn-tigo btn-tigo--ghost"),
                       actionButton("btn_pack", "Reorganizar (sin huecos)",  class="btn-tigo btn-tigo--ghost"),
+                      actionButton("go_comments", "Ir a pestaña Comentarios", class="btn-tigo btn-tigo--ghost"),
                       downloadButton("btn_dl_xlsx", "Descargar Excel (Gantt)", class="btn-tigo btn-tigo--ghost")
                   ),
                   div(class="portal__divider"),
@@ -221,6 +222,7 @@ ui <- fluidPage(
               div(class="portal__body",
                   tabsetPanel(
                     id = "tabs_main",
+                    type = "pills",
                     tabPanel("Gantt",
                              div(id="gantt_here", class="gantt-portal")
                     ),
@@ -238,7 +240,7 @@ ui <- fluidPage(
                                  )
                              )
                     ),
-                    tabPanel("Comentarios",
+                    tabPanel(title = tagList(icon("comments"), "Comentarios"), value = "comments_tab",
                              div(class = "comments-wrap",
                                  div(class = "comments-form",
                                      div(class = "comments-form__title", "Registrar comentario"),
