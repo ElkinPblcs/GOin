@@ -179,26 +179,16 @@ ui <- fluidPage(
 
       Shiny.addCustomMessageHandler('gantt_data', function(payload){
         window.__gantt_tasks_cache = mapTaskColors(payload.tasks || []);
-        if (isVisible(document.getElementById('gantt_here'))) {
-          renderPlannedFromCache();
-        }
+        renderPlannedFromCache();
       });
 
       Shiny.addCustomMessageHandler('gantt_original_data', function(payload){
         window.__gantt_original_tasks_cache = mapTaskColors(payload.tasks || []);
-        if (isVisible(document.getElementById('gantt_original_here'))) {
-          renderOriginalFromCache();
-        }
+        renderOriginalFromCache();
       });
 
       document.addEventListener('shown.bs.tab', function(){
         setTimeout(function(){
-          if (isVisible(document.getElementById('gantt_here')) && window.__gantt_tasks_cache) {
-            renderPlannedFromCache();
-          }
-          if (isVisible(document.getElementById('gantt_original_here')) && window.__gantt_original_tasks_cache) {
-            renderOriginalFromCache();
-          }
           refreshVisibleGantt();
         }, 0);
       });

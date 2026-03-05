@@ -267,7 +267,9 @@ server <- function(input, output, session) {
       original <- original_rv()
       if (!is.null(original)) send_original_gantt(original)
       
-      log_rv(paste0("OK. tasks=", nrow(planned$tasks), " | resources=", nrow(planned$resources),
+      log_rv(paste0("OK. planned_tasks=", nrow(planned$tasks),
+                    " | original_tasks=", nrow(original$tasks),
+                    " | resources=", nrow(planned$resources),
                     "\nAhora: click en una cápsula y mira el panel izquierdo."))
     }, error = function(e) {
       msg <- paste("ERROR:", conditionMessage(e))
