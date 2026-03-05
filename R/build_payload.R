@@ -29,14 +29,14 @@ detect_business_unit <- function(skill_names_chr) {
 }
 
 
-build_planned_from_a_plan <- function(a_plan) {
+build_tasks_payload <- function(a_plan, start_col, end_col) {
   if (is.null(a_plan) || nrow(a_plan) == 0) {
     return(list(tasks = tibble(), resources = tibble()))
   }
   
   need <- c("id","title","status","priority","description",
-            "planned_start","planned_end",
             "collab_email_plan","skill_main","typeTask_name","tag","project_name")
+  need <- unique(c(need, start_col, end_col))
   miss <- setdiff(need, colnames(a_plan))
   if (length(miss) > 0) {
     stop("a_plan no tiene estas columnas: ", paste(miss, collapse = ", "))
@@ -59,11 +59,11 @@ build_planned_from_a_plan <- function(a_plan) {
       text = safe_chr(title),
       resource_id = if_else(is.na(collab_email_plan) | collab_email_plan == "",
                             "SIN_ASIGNAR", as.character(collab_email_plan)),
-      start_date = fmt_gantt(planned_start),
+      start_date = fmt_gantt(.data[[start_col]]),
       duration = if_else(
-        !is.na(planned_start) & !is.na(planned_end),
-        as.numeric(difftime(as.POSIXct(planned_end, tz = TZ_LOCAL),
-                            as.POSIXct(planned_start, tz = TZ_LOCAL),
+        !is.na(.data[[start_col]]) & !is.na(.data[[end_col]]),
+        as.numeric(difftime(as.POSIXct(.data[[end_col]], tz = TZ_LOCAL),
+                            as.POSIXct(.data[[start_col]], tz = TZ_LOCAL),
                             units = "hours")),
         NA_real_
       ),
@@ -88,4 +88,22 @@ build_planned_from_a_plan <- function(a_plan) {
            skill_main, typeTask_name, tag, project_name, objetivo, skill_names, business_unit, pais, status, priority, description)
   
   list(tasks = tasks, resources = resources)
+}
+
+
+build_planned_from_a_plan <- function(a_plan) {
+  build_tasks_payload(
+    a_plan = a_plan,
+    start_col = "planned_start",
+    end_col = "planned_end"
+  )
+}
+
+
+build_original_from_a_plan <- function(a_plan) {
+  build_tasks_payload(
+    a_plan = a_plan,
+    start_col = "datetime",
+    end_col = "deadline"
+  )
 }

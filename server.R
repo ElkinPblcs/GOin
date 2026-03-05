@@ -5,14 +5,15 @@ library(lubridate)
 
 server <- function(input, output, session) {
   planned_rv <- reactiveVal(NULL)
+  original_rv <- reactiveVal(NULL)
   a_plan_rv <- reactiveVal(NULL)
   selected_id_rv <- reactiveVal(NULL)
   log_rv <- reactiveVal("Listo. Presiona 'Pintar/Refrescar'.")
   
   output$log <- renderText(log_rv())
   
-  send_gantt <- function(planned) {
-    tasks <- planned$tasks %>%
+  apply_filters_to_tasks <- function(tasks) {
+    tasks <- tasks %>%
       mutate(
         resource_id = trimws(as.character(resource_id)),
         pais = trimws(toupper(as.character(pais))),
@@ -46,7 +47,17 @@ server <- function(input, output, session) {
       tasks <- tasks %>% dplyr::filter(business_unit == busel)
     }
     
+    tasks
+  }
+
+  send_gantt <- function(planned) {
+    tasks <- apply_filters_to_tasks(planned$tasks)
     session$sendCustomMessage("gantt_data", list(tasks = df_to_rows(tasks)))
+  }
+
+  send_original_gantt <- function(original) {
+    tasks <- apply_filters_to_tasks(original$tasks)
+    session$sendCustomMessage("gantt_original_data", list(tasks = df_to_rows(tasks)))
   }
   
   
@@ -171,6 +182,7 @@ server <- function(input, output, session) {
       
       
       planned <- build_planned_from_a_plan(ap)
+      original <- build_original_from_a_plan(ap)
       if (nrow(planned$tasks) == 0) {
         log_rv("No hay tareas con planned_start/planned_end para pintar.")
         showNotification("No hay tareas planeadas para pintar.", type = "warning", duration = 8)
@@ -178,6 +190,7 @@ server <- function(input, output, session) {
       }
       
       planned_rv(planned)
+      original_rv(original)
       
       # ======================
       # choices país (multi)
@@ -251,6 +264,8 @@ server <- function(input, output, session) {
       
       
       send_gantt(planned)
+      original <- original_rv()
+      if (!is.null(original)) send_original_gantt(original)
       
       log_rv(paste0("OK. tasks=", nrow(planned$tasks), " | resources=", nrow(planned$resources),
                     "\nAhora: click en una cápsula y mira el panel izquierdo."))
@@ -302,6 +317,8 @@ server <- function(input, output, session) {
     
     planned_rv(planned)
     send_gantt(planned)
+    original <- original_rv()
+    if (!is.null(original)) send_original_gantt(original)
   }, ignoreInit = TRUE)
   
   
@@ -345,6 +362,8 @@ server <- function(input, output, session) {
     
     planned_rv(planned)
     send_gantt(planned)
+    original <- original_rv()
+    if (!is.null(original)) send_original_gantt(original)
     log_rv(paste0("Reorganizado sin huecos. nonce=", snap$nonce))
   }, ignoreInit = TRUE)
   
@@ -358,6 +377,8 @@ server <- function(input, output, session) {
     planned <- planned_rv()
     if (is.null(planned)) return()
     send_gantt(planned)
+    original <- original_rv()
+    if (!is.null(original)) send_original_gantt(original)
   }, ignoreInit = TRUE)
   
   
@@ -365,18 +386,24 @@ server <- function(input, output, session) {
     planned <- planned_rv()
     if (is.null(planned)) return()
     send_gantt(planned)
+    original <- original_rv()
+    if (!is.null(original)) send_original_gantt(original)
   }, ignoreInit = TRUE)
   
   observeEvent(input$filter_objective, {
     planned <- planned_rv()
     if (is.null(planned)) return()
     send_gantt(planned)
+    original <- original_rv()
+    if (!is.null(original)) send_original_gantt(original)
   }, ignoreInit = TRUE)
 
   observeEvent(input$filter_business_unit, {
     planned <- planned_rv()
     if (is.null(planned)) return()
     send_gantt(planned)
+    original <- original_rv()
+    if (!is.null(original)) send_original_gantt(original)
   }, ignoreInit = TRUE)
   
   
