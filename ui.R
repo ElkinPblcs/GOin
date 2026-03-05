@@ -264,7 +264,7 @@ ui <- fluidPage(
                                  div(class = "comments-list",
                                      div(class = "comments-form__title", "Historial guardado en VM"),
                                      div(class = "microcopy", "Tip: la lista se filtra por País (filtro izquierdo). Click en una fila para ver el comentario completo."),
-                                     DT::DTOutput("tbl_comments"),
+                                     DT::DTOutput("tbl_comments", width = "100%"),
                                      div(class = "portal__divider"),
                                      uiOutput("comment_details")
                                  )

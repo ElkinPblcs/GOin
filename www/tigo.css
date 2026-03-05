@@ -293,6 +293,12 @@
 .comments-form__row{ margin-bottom:8px; }
 
 #tbl_comments .dataTables_wrapper{ font-size:12px; }
+
+#tbl_comments{ width:100%; }
+#tbl_comments .dataTables_wrapper{ width:100%; }
+#tbl_comments table.dataTable{ width:100% !important; table-layout:fixed; }
+#tbl_comments table.dataTable tbody td{ white-space:normal; word-break:break-word; }
+
 #tbl_comments table.dataTable thead th{
   background:#EEF2FF !important;
   color:#1f2a44 !important;

@@ -713,11 +713,11 @@ server <- function(input, output, session) {
       options = list(
         pageLength = 8,
         lengthChange = FALSE,
-        autoWidth = TRUE,
+        autoWidth = FALSE,
+        scrollX = TRUE,
         order = list(list(0, "desc"), list(4, "desc")),
         dom = "ftip",
         columnDefs = list(
-          list(width = "52%", targets = 2),
           list(visible = FALSE, targets = 3)
         )
       )
