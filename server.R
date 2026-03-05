@@ -585,25 +585,16 @@ server <- function(input, output, session) {
     showNotification("Comentario guardado en la VM.", type = "message", duration = 4)
   }, ignoreInit = TRUE)
 
-  observeEvent(input$go_comments, {
-    updateTabsetPanel(session, "tabs_main", selected = "Comentarios")
-  }, ignoreInit = TRUE)
-
-  output$tbl_comments <- DT::renderDT({
+  comments_view <- reactive({
     comments <- comments_rv()
-    if (is.null(comments) || nrow(comments) == 0) {
-      return(DT::datatable(
-        data.frame(Mensaje = "Aún no hay comentarios guardados."),
-        rownames = FALSE,
-        options = list(dom = "t", paging = FALSE)
-      ))
-    }
+    if (is.null(comments) || nrow(comments) == 0) return(NULL)
 
-    comments_view <- comments %>%
+    comments %>%
       mutate(
         comment_date = suppressWarnings(as.Date(comment_date)),
         country = trimws(toupper(as.character(country))),
-        comment = as.character(comment)
+        comment = as.character(comment),
+        saved_at = as.character(saved_at)
       ) %>%
       arrange(desc(comment_date), desc(saved_at)) %>%
       transmute(
@@ -612,19 +603,51 @@ server <- function(input, output, session) {
         Comentario = comment,
         `Guardado en` = saved_at
       )
+  })
+
+  output$tbl_comments <- DT::renderDT({
+    comments_tbl <- comments_view()
+    if (is.null(comments_tbl) || nrow(comments_tbl) == 0) {
+      return(DT::datatable(
+        data.frame(Mensaje = "Aún no hay comentarios guardados."),
+        rownames = FALSE,
+        options = list(dom = "t", paging = FALSE)
+      ))
+    }
 
     DT::datatable(
-      comments_view,
+      comments_tbl,
       rownames = FALSE,
       class = "compact stripe hover",
       escape = TRUE,
+      selection = "single",
       options = list(
         pageLength = 8,
         lengthChange = FALSE,
         autoWidth = TRUE,
         order = list(list(0, "desc"), list(3, "desc")),
-        dom = "tip"
+        dom = "tip",
+        columnDefs = list(list(width = "55%", targets = 2))
       )
+    )
+  })
+
+  output$comment_details <- renderUI({
+    comments_tbl <- comments_view()
+    selected <- input$tbl_comments_rows_selected
+
+    if (is.null(comments_tbl) || nrow(comments_tbl) == 0 || is.null(selected) || length(selected) == 0) {
+      return(tags$div(
+        class = "comment-detail-empty",
+        "Selecciona un comentario para ver el detalle completo."
+      ))
+    }
+
+    row <- comments_tbl[selected[1], , drop = FALSE]
+    tags$div(
+      class = "comment-detail-box",
+      tags$div(class = "comment-detail-meta", paste0("País: ", row$País, " · Fecha: ", row$Fecha, " · Guardado: ", row$`Guardado en`)),
+      tags$div(class = "comment-detail-text", row$Comentario)
     )
   })
 

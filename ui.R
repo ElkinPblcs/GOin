@@ -202,7 +202,6 @@ ui <- fluidPage(
                       actionButton("btn_run",  "Actualizar a_plan (run.R)", class="btn-tigo btn-tigo--primary"),
                       actionButton("btn_draw", "Pintar / Refrescar",        class="btn-tigo btn-tigo--ghost"),
                       actionButton("btn_pack", "Reorganizar (sin huecos)",  class="btn-tigo btn-tigo--ghost"),
-                      actionButton("go_comments", "Abrir Comentarios", class="btn-tigo btn-tigo--ghost"),
                       downloadButton("btn_dl_xlsx", "Descargar Excel (Gantt)", class="btn-tigo btn-tigo--ghost")
                   ),
                   div(class="portal__divider"),
@@ -259,7 +258,10 @@ ui <- fluidPage(
                                  ),
                                  div(class = "comments-list",
                                      div(class = "comments-form__title", "Historial guardado en VM"),
-                                     DT::DTOutput("tbl_comments")
+                                     div(class = "microcopy", "Tip: haz click en una fila para ver el comentario completo."),
+                                     DT::DTOutput("tbl_comments"),
+                                     div(class = "portal__divider"),
+                                     uiOutput("comment_details")
                                  )
                              )
                     )
