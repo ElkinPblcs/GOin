@@ -4,8 +4,19 @@ library(dplyr)
 library(lubridate)
 
 server <- function(input, output, session) {
-  comments_path <- file.path("data", "comments_log.csv")
-  if (!dir.exists("data")) dir.create("data", recursive = TRUE, showWarnings = FALSE)
+  comments_dir <- Sys.getenv("COMMENTS_DATA_DIR", unset = "data")
+  if (!dir.exists(comments_dir)) {
+    ok_dir <- tryCatch({
+      dir.create(comments_dir, recursive = TRUE, showWarnings = FALSE)
+    }, error = function(e) FALSE)
+
+    if (!isTRUE(ok_dir) && !dir.exists(comments_dir)) {
+      comments_dir <- file.path(tempdir(), "goin_comments")
+      dir.create(comments_dir, recursive = TRUE, showWarnings = FALSE)
+      showNotification("No se pudo usar carpeta de datos principal; usando almacenamiento temporal en VM.", type = "warning", duration = 8)
+    }
+  }
+  comments_path <- file.path(comments_dir, "comments_log.csv")
 
   load_comments <- function() {
     if (!file.exists(comments_path)) {
@@ -38,7 +49,14 @@ server <- function(input, output, session) {
   }
 
   save_comments <- function(df) {
-    write.csv(df, comments_path, row.names = FALSE, fileEncoding = "UTF-8")
+    ok <- tryCatch({
+      write.csv(df, comments_path, row.names = FALSE, fileEncoding = "UTF-8")
+      TRUE
+    }, error = function(e) {
+      FALSE
+    })
+
+    if (!ok) stop("No fue posible guardar comments_log.csv en la VM.")
   }
 
   planned_rv <- reactiveVal(NULL)
@@ -607,39 +625,44 @@ server <- function(input, output, session) {
   
   
   observeEvent(input$btn_save_comment, {
-    req(input$comment_date, input$comment_country, input$comment_text)
+    tryCatch({
+      req(input$comment_date, input$comment_country, input$comment_text)
 
-    valid_countries <- unname(build_country_choices())
-    country <- trimws(toupper(as.character(input$comment_country)))
-    comment_text <- trimws(as.character(input$comment_text))
+      valid_countries <- unname(build_country_choices())
+      country <- trimws(toupper(as.character(input$comment_country)))
+      comment_text <- trimws(as.character(input$comment_text))
 
-    if (country == "" || !(country %in% valid_countries)) {
-      showNotification("Debes seleccionar una etiqueta de país válida.", type = "warning", duration = 5)
-      return()
-    }
+      if (country == "" || !(country %in% valid_countries)) {
+        showNotification("Debes seleccionar una etiqueta de país válida.", type = "warning", duration = 5)
+        return()
+      }
 
-    if (comment_text == "") {
-      showNotification("Escribe un comentario antes de guardar.", type = "warning", duration = 5)
-      return()
-    }
+      if (comment_text == "") {
+        showNotification("Escribe un comentario antes de guardar.", type = "warning", duration = 5)
+        return()
+      }
 
-    comments <- comments_rv()
-    new_row <- data.frame(
-      saved_at = format(Sys.time(), "%Y-%m-%d %H:%M:%S"),
-      comment_date = as.character(input$comment_date),
-      country = country,
-      comment = comment_text,
-      stringsAsFactors = FALSE
-    )
+      comments <- comments_rv()
+      new_row <- data.frame(
+        saved_at = format(Sys.time(), "%Y-%m-%d %H:%M:%S"),
+        comment_date = as.character(input$comment_date),
+        country = country,
+        comment = comment_text,
+        stringsAsFactors = FALSE
+      )
 
-    comments <- dplyr::bind_rows(comments, new_row)
-    save_comments(comments)
-    comments_rv(load_comments())
+      comments <- dplyr::bind_rows(comments, new_row)
+      save_comments(comments)
+      comments_rv(load_comments())
 
-    updateTabsetPanel(session, "tabs_main", selected = "Comentarios")
-    updateSelectizeInput(session, "comment_country", selected = country, server = TRUE)
-    updateTextAreaInput(session, "comment_text", value = "")
-    showNotification("Comentario guardado en la VM.", type = "message", duration = 4)
+      updateTabsetPanel(session, "tabs_main", selected = "Comentarios")
+      updateSelectizeInput(session, "comment_country", selected = country, server = TRUE)
+      updateTextAreaInput(session, "comment_text", value = "")
+      showNotification("Comentario guardado en la VM.", type = "message", duration = 4)
+    }, error = function(e) {
+      log_rv(paste("ERROR comentarios:", conditionMessage(e)))
+      showNotification(paste("No se pudo guardar el comentario:", conditionMessage(e)), type = "error", duration = 8)
+    })
   }, ignoreInit = TRUE)
 
   comments_view <- reactive({
