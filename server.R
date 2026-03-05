@@ -86,8 +86,9 @@ server <- function(input, output, session) {
   output$log <- renderText(log_rv())
   observe({
     choices <- build_country_choices()
+    valid_values <- unname(choices)
     current <- isolate(input$comment_country)
-    selected <- if (!is.null(current) && trimws(as.character(current)) != "") current else NULL
+    selected <- if (!is.null(current) && current %in% valid_values) current else NULL
 
     updateSelectizeInput(
       session,
@@ -608,11 +609,17 @@ server <- function(input, output, session) {
   observeEvent(input$btn_save_comment, {
     req(input$comment_date, input$comment_country, input$comment_text)
 
+    valid_countries <- unname(build_country_choices())
     country <- trimws(toupper(as.character(input$comment_country)))
     comment_text <- trimws(as.character(input$comment_text))
 
-    if (country == "" || comment_text == "") {
-      showNotification("Completa país y comentario antes de guardar.", type = "warning", duration = 5)
+    if (country == "" || !(country %in% valid_countries)) {
+      showNotification("Debes seleccionar una etiqueta de país válida.", type = "warning", duration = 5)
+      return()
+    }
+
+    if (comment_text == "") {
+      showNotification("Escribe un comentario antes de guardar.", type = "warning", duration = 5)
       return()
     }
 
@@ -658,7 +665,8 @@ server <- function(input, output, session) {
       transmute(
         Fecha = ifelse(is.na(comment_date), "", as.character(comment_date)),
         País = country,
-        Comentario = comment,
+        Comentario = ifelse(nchar(comment) > 80, paste0(substr(comment, 1, 80), "…"), comment),
+        ComentarioCompleto = comment,
         `Guardado en` = saved_at
       )
   })
@@ -675,7 +683,6 @@ server <- function(input, output, session) {
 
     DT::datatable(
       comments_tbl,
-      filter = "top",
       rownames = FALSE,
       class = "compact stripe hover",
       escape = TRUE,
@@ -684,9 +691,12 @@ server <- function(input, output, session) {
         pageLength = 8,
         lengthChange = FALSE,
         autoWidth = TRUE,
-        order = list(list(0, "desc"), list(3, "desc")),
-        dom = "tip",
-        columnDefs = list(list(width = "55%", targets = 2))
+        order = list(list(0, "desc"), list(4, "desc")),
+        dom = "ftip",
+        columnDefs = list(
+          list(width = "52%", targets = 2),
+          list(visible = FALSE, targets = 3)
+        )
       )
     )
   })
@@ -706,7 +716,7 @@ server <- function(input, output, session) {
     tags$div(
       class = "comment-detail-box",
       tags$div(class = "comment-detail-meta", paste0("País: ", row$País, " · Fecha: ", row$Fecha, " · Guardado: ", row$`Guardado en`)),
-      tags$div(class = "comment-detail-text", row$Comentario)
+      tags$div(class = "comment-detail-text", row$ComentarioCompleto)
     )
   })
 

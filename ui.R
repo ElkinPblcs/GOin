@@ -250,8 +250,8 @@ ui <- fluidPage(
                                      div(class = "comments-form__row",
                                          selectizeInput("comment_country", "País (etiqueta)",
                                                       choices = NULL, selected = NULL, multiple = FALSE,
-                                                      options = list(create = TRUE,
-                                                                     placeholder = "Selecciona o escribe etiqueta país (ej: CO)",
+                                                      options = list(create = FALSE,
+                                                                     placeholder = "Selecciona etiqueta país",
                                                                      persist = FALSE),
                                                       width = "100%")
                                      ),
@@ -263,7 +263,7 @@ ui <- fluidPage(
                                  ),
                                  div(class = "comments-list",
                                      div(class = "comments-form__title", "Historial guardado en VM"),
-                                     div(class = "microcopy", "Tip: busca por texto y haz click en una fila para ver el comentario completo. Esta lista respeta el filtro de país de la izquierda."),
+                                     div(class = "microcopy", "Tip: la lista se filtra por País (filtro izquierdo). Click en una fila para ver el comentario completo."),
                                      DT::DTOutput("tbl_comments"),
                                      div(class = "portal__divider"),
                                      uiOutput("comment_details")
