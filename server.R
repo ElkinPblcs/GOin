@@ -59,6 +59,17 @@ server <- function(input, output, session) {
     tasks <- apply_filters_to_tasks(original$tasks)
     session$sendCustomMessage("gantt_original_data", list(tasks = df_to_rows(tasks)))
   }
+
+  observeEvent(input$gantt_debug, {
+    dbg <- input$gantt_debug
+    if (is.null(dbg)) return()
+    line <- paste0(
+      "[JS ", as.character(dbg$scope), "] ",
+      as.character(dbg$message),
+      ifelse(is.null(dbg$extra) || is.na(dbg$extra) || dbg$extra == "", "", paste0(" | ", as.character(dbg$extra)))
+    )
+    log_rv(paste(log_rv(), line, sep = "\n"))
+  }, ignoreInit = TRUE)
   
   
 
@@ -266,9 +277,14 @@ server <- function(input, output, session) {
       send_gantt(planned)
       original <- original_rv()
       if (!is.null(original)) send_original_gantt(original)
+
+      original_tasks_filtered <- apply_filters_to_tasks(original$tasks)
+      original_start_na <- sum(is.na(original_tasks_filtered$start_date) | trimws(as.character(original_tasks_filtered$start_date)) == "")
       
       log_rv(paste0("OK. planned_tasks=", nrow(planned$tasks),
                     " | original_tasks=", nrow(original$tasks),
+                    " | original_filtered=", nrow(original_tasks_filtered),
+                    " | original_start_blank=", original_start_na,
                     " | resources=", nrow(planned$resources),
                     "\nAhora: click en una cápsula y mira el panel izquierdo."))
     }, error = function(e) {

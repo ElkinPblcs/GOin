@@ -55,6 +55,16 @@ ui <- fluidPage(
       window.__gantt_tasks_cache = [];
       window.__gantt_original_tasks_cache = [];
 
+      function debugToShiny(scope, message, extra){
+        if (!window.Shiny) return;
+        Shiny.setInputValue('gantt_debug', {
+          scope: String(scope || ''),
+          message: String(message || ''),
+          extra: (extra || ''),
+          nonce: Date.now()
+        }, {priority:'event'});
+      }
+
       function sendSelectedId(id){
         if (!window.Shiny) return;
         Shiny.setInputValue('task_selected_id', { id: String(id), nonce: Date.now() }, {priority:'event'});
@@ -139,33 +149,58 @@ ui <- fluidPage(
 
       function ensurePlannedGantt(){
         if (window.__gantt_inited) return;
-        configureGantt(gantt);
-        gantt.init('gantt_here');
-        window.__gantt_inited = true;
+        try {
+          configureGantt(gantt);
+          gantt.init('gantt_here');
+          window.__gantt_inited = true;
+          debugToShiny('planned', 'init_ok', 'gantt_here');
+        } catch (e) {
+          debugToShiny('planned', 'init_error', (e && e.message) ? e.message : String(e));
+          throw e;
+        }
       }
 
       function ensureOriginalGantt(){
         if (window.__gantt_original_inited) return;
-        window.gantt_original = window.Gantt.getGanttInstance();
-        configureGantt(window.gantt_original);
-        window.gantt_original.config.drag_move = false;
-        window.gantt_original.config.drag_resize = false;
-        window.gantt_original.init('gantt_original_here');
-        window.__gantt_original_inited = true;
+        try {
+          if (!window.Gantt || typeof window.Gantt.getGanttInstance !== 'function') {
+            throw new Error('window.Gantt.getGanttInstance no disponible');
+          }
+          window.gantt_original = window.Gantt.getGanttInstance();
+          configureGantt(window.gantt_original);
+          window.gantt_original.config.drag_move = false;
+          window.gantt_original.config.drag_resize = false;
+          window.gantt_original.init('gantt_original_here');
+          window.__gantt_original_inited = true;
+          debugToShiny('original', 'init_ok', 'gantt_original_here');
+        } catch (e) {
+          debugToShiny('original', 'init_error', (e && e.message) ? e.message : String(e));
+          throw e;
+        }
       }
 
       function renderPlannedFromCache(){
-        ensurePlannedGantt();
-        gantt.clearAll();
-        gantt.parse({ data: window.__gantt_tasks_cache || [], links: [] });
-        safeRefreshGantt(gantt);
+        try {
+          ensurePlannedGantt();
+          gantt.clearAll();
+          gantt.parse({ data: window.__gantt_tasks_cache || [], links: [] });
+          safeRefreshGantt(gantt);
+          debugToShiny('planned', 'render_ok', 'tasks=' + (window.__gantt_tasks_cache || []).length);
+        } catch (e) {
+          debugToShiny('planned', 'render_error', (e && e.message) ? e.message : String(e));
+        }
       }
 
       function renderOriginalFromCache(){
-        ensureOriginalGantt();
-        window.gantt_original.clearAll();
-        window.gantt_original.parse({ data: window.__gantt_original_tasks_cache || [], links: [] });
-        safeRefreshGantt(window.gantt_original);
+        try {
+          ensureOriginalGantt();
+          window.gantt_original.clearAll();
+          window.gantt_original.parse({ data: window.__gantt_original_tasks_cache || [], links: [] });
+          safeRefreshGantt(window.gantt_original);
+          debugToShiny('original', 'render_ok', 'tasks=' + (window.__gantt_original_tasks_cache || []).length);
+        } catch (e) {
+          debugToShiny('original', 'render_error', (e && e.message) ? e.message : String(e));
+        }
       }
 
       function refreshVisibleGantt(){
@@ -179,11 +214,13 @@ ui <- fluidPage(
 
       Shiny.addCustomMessageHandler('gantt_data', function(payload){
         window.__gantt_tasks_cache = mapTaskColors(payload.tasks || []);
+        debugToShiny('planned', 'payload_received', 'tasks=' + window.__gantt_tasks_cache.length);
         renderPlannedFromCache();
       });
 
       Shiny.addCustomMessageHandler('gantt_original_data', function(payload){
         window.__gantt_original_tasks_cache = mapTaskColors(payload.tasks || []);
+        debugToShiny('original', 'payload_received', 'tasks=' + window.__gantt_original_tasks_cache.length);
         renderOriginalFromCache();
       });
 
