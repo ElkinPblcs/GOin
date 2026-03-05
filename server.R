@@ -431,7 +431,7 @@ server <- function(input, output, session) {
       mutate(resource_name = trimws(as.character(resource_name))) %>%
       filter(!is.na(resource_name), resource_name != "") %>%
       group_by(resource_name) %>%
-      summarise(horas_pendientes = sum(dur_h, na.rm = TRUE), .groups = "drop") %>%
+      summarise(horas_pendientes = sum(dur_h, na.rm = TRUE) / 3, .groups = "drop") %>%
       filter(is.finite(horas_pendientes), horas_pendientes > 0) %>%
       arrange(desc(horas_pendientes))
 
@@ -463,7 +463,7 @@ server <- function(input, output, session) {
       marker = list(colors = I(pie_colors))
     ) %>%
       plotly::layout(
-        title = list(text = "Horas pendientes por recurso", x = 0.02),
+        title = list(text = "Horas pendientes por recurso (base 8h)", x = 0.02),
         legend = list(orientation = "v")
       )
   })
@@ -504,7 +504,7 @@ server <- function(input, output, session) {
       summarise(
         resource_name = dplyr::first(na.omit(resource_name)),
         libre_desde_dt = suppressWarnings(max(end_dt, na.rm = TRUE)),
-        horas_asignadas = sum(dur_h, na.rm = TRUE),
+        horas_asignadas = sum(dur_h, na.rm = TRUE) / 3,
         tareas = dplyr::n(),
         .groups = "drop"
       ) %>%
