@@ -10,8 +10,50 @@ df_to_rows <- function(df) {
 }
 
 fmt_gantt <- function(x) {
-  x <- suppressWarnings(as.POSIXct(x, tz = TZ_LOCAL))
+  x <- parse_datetime_safe(x, tz = TZ_LOCAL)
   ifelse(is.na(x), NA_character_, format(x, "%Y-%m-%d %H:%M"))
+}
+
+parse_datetime_safe <- function(x, tz = TZ_LOCAL) {
+  parse_one <- function(v) {
+    if (is.null(v) || length(v) == 0) return(as.POSIXct(NA, tz = tz))
+    if (inherits(v, "POSIXt")) return(as.POSIXct(v, tz = tz))
+
+    if (is.list(v)) {
+      if (length(v) == 0) return(as.POSIXct(NA, tz = tz))
+      v <- v[[1]]
+      if (is.null(v) || length(v) == 0) return(as.POSIXct(NA, tz = tz))
+    }
+
+    if (is.numeric(v)) {
+      return(suppressWarnings(as.POSIXct(v, origin = "1970-01-01", tz = tz)))
+    }
+
+    vv <- trimws(as.character(v)[1])
+    if (is.na(vv) || vv == "") return(as.POSIXct(NA, tz = tz))
+
+    parsed <- suppressWarnings(lubridate::ymd_hms(vv, tz = tz, quiet = TRUE))
+    if (!is.na(parsed)) return(parsed)
+
+    parsed <- suppressWarnings(lubridate::parse_date_time(
+      vv,
+      orders = c(
+        "Y-m-d H:M:S", "Y-m-d H:M",
+        "Y/m/d H:M:S", "Y/m/d H:M",
+        "Ymd HMS", "Ymd HM",
+        "d/m/Y H:M:S", "d/m/Y H:M"
+      ),
+      tz = tz,
+      quiet = TRUE
+    ))
+
+    suppressWarnings(as.POSIXct(parsed, tz = tz))
+  }
+
+  if (inherits(x, "POSIXt")) return(as.POSIXct(x, tz = tz))
+
+  out <- lapply(seq_along(x), function(i) parse_one(x[[i]]))
+  do.call(c, out)
 }
 
 safe_chr <- function(x) {

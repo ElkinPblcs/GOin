@@ -51,63 +51,70 @@ ui <- fluidPage(
       }
 
       window.__gantt_inited = false;
+      window.__gantt_original_inited = false;
+      window.__gantt_tasks_cache = [];
+      window.__gantt_original_tasks_cache = [];
+
+      function debugToShiny(scope, message, extra){
+        if (!window.Shiny) return;
+        Shiny.setInputValue('gantt_debug', {
+          scope: String(scope || ''),
+          message: String(message || ''),
+          extra: (extra || ''),
+          nonce: Date.now()
+        }, {priority:'event'});
+      }
 
       function sendSelectedId(id){
         if (!window.Shiny) return;
         Shiny.setInputValue('task_selected_id', { id: String(id), nonce: Date.now() }, {priority:'event'});
       }
 
-      function configureGanttOnce(){
-        gantt.config.date_format = \"%Y-%m-%d %H:%i\";
-        gantt.config.duration_unit = \"hour\";
+      function configureGantt(g){
+        g.config.date_format = '%Y-%m-%d %H:%i';
+        g.config.duration_unit = 'hour';
 
-        gantt.config.drag_move = true;
-        gantt.config.drag_resize = true;
-        gantt.config.drag_progress = false;
+        g.config.drag_move = true;
+        g.config.drag_resize = true;
+        g.config.drag_progress = false;
 
-        gantt.config.scale_unit = \"day\";
-        gantt.config.date_scale = \"%d %b\";
-        gantt.config.subscales = [{ unit: \"hour\", step: 3, date: \"%H\" }];
-        gantt.config.min_column_width = 105; // ~1.5x ancho diario
+        g.config.scale_unit = 'day';
+        g.config.date_scale = '%d %b';
+        g.config.subscales = [{ unit: 'hour', step: 3, date: '%H' }];
+        g.config.min_column_width = 105;
 
-        gantt.config.grid_width = 520;
-        gantt.config.columns = [
+        g.config.grid_width = 520;
+        g.config.columns = [
           {name:'text', label:'Tarea', tree:true, width:270},
           {name:'resource_name', label:'Colaborador', width:250}
         ];
 
-        gantt.templates.task_class = function(start, end, task){
+        g.templates.task_class = function(start, end, task){
           return statusClass(task.status) + ' ' + countryClass(task.pais);
         };
-        gantt.templates.task_style = function(start, end, task){
+        g.templates.task_style = function(start, end, task){
           var c = statusColor(task.status);
           var txt = (statusKey(task.status) === 'en_proceso') ? 'color:#000;' : '';
           return 'background:' + c + ';border-color:' + c + ';--task-status-color:' + c + ';' + txt;
         };
 
-        gantt.attachEvent('onTaskClick', function(id, e){
-          sendSelectedId(id);
-          return true;
-        });
-        gantt.attachEvent('onTaskRowClick', function(id){
-          sendSelectedId(id);
-          return true;
-        });
+        g.attachEvent('onTaskClick', function(id, e){ sendSelectedId(id); return true; });
+        g.attachEvent('onTaskRowClick', function(id){ sendSelectedId(id); return true; });
 
-        gantt.attachEvent('onBeforeTaskChanged', function(id, mode, task){
+        g.attachEvent('onBeforeTaskChanged', function(id, mode, task){
           task.$old_resource_id = task.resource_id;
           return true;
         });
 
-        gantt.attachEvent('onAfterTaskDrag', function(id, mode, e) {
-          var item = gantt.getTask(id);
+        g.attachEvent('onAfterTaskDrag', function(id, mode, e) {
+          var item = g.getTask(id);
           if (mode !== 'move' && mode !== 'resize') return true;
 
           if (window.Shiny) {
             Shiny.setInputValue('gantt_update', {
               id: String(id),
               mode: mode,
-              start_date: gantt.templates.xml_format(item.start_date),
+              start_date: g.templates.xml_format(item.start_date),
               duration: item.duration,
               resource_id: item.resource_id,
               old_resource_id: item.$old_resource_id || item.resource_id,
@@ -118,29 +125,114 @@ ui <- fluidPage(
         });
       }
 
-      function initOrUpdateGantt(tasks){
-        tasks = (tasks || []).map(function(t){
+      function mapTaskColors(tasks){
+        return (tasks || []).map(function(t){
           var c = statusColor(t.status);
           t.color = c;
           t.progressColor = c;
           if (statusKey(t.status) === 'en_proceso') t.textColor = '#000';
           return t;
         });
+      }
 
-        if (!window.__gantt_inited) {
-          configureGanttOnce();
+      function isVisible(el){
+        return !!(el && el.offsetParent !== null);
+      }
+
+      function safeRefreshGantt(g){
+        if (!g) return;
+        try {
+          if (typeof g.setSizes === 'function') g.setSizes();
+          g.render();
+        } catch (e) {}
+      }
+
+      function ensurePlannedGantt(){
+        if (window.__gantt_inited) return;
+        try {
+          configureGantt(gantt);
           gantt.init('gantt_here');
           window.__gantt_inited = true;
+          debugToShiny('planned', 'init_ok', 'gantt_here');
+        } catch (e) {
+          debugToShiny('planned', 'init_error', (e && e.message) ? e.message : String(e));
+          throw e;
         }
-        gantt.clearAll();
-        gantt.parse({ data: tasks, links: [] });
-        gantt.render();
+      }
+
+      function ensureOriginalGantt(){
+        if (window.__gantt_original_inited) return;
+        try {
+          if (!window.Gantt || typeof window.Gantt.getGanttInstance !== 'function') {
+            throw new Error('window.Gantt.getGanttInstance no disponible');
+          }
+          window.gantt_original = window.Gantt.getGanttInstance();
+          configureGantt(window.gantt_original);
+          window.gantt_original.config.drag_move = false;
+          window.gantt_original.config.drag_resize = false;
+          window.gantt_original.init('gantt_original_here');
+          window.__gantt_original_inited = true;
+          debugToShiny('original', 'init_ok', 'gantt_original_here');
+        } catch (e) {
+          debugToShiny('original', 'init_error', (e && e.message) ? e.message : String(e));
+          throw e;
+        }
+      }
+
+      function renderPlannedFromCache(){
+        try {
+          ensurePlannedGantt();
+          gantt.clearAll();
+          gantt.parse({ data: window.__gantt_tasks_cache || [], links: [] });
+          safeRefreshGantt(gantt);
+          debugToShiny('planned', 'render_ok', 'tasks=' + (window.__gantt_tasks_cache || []).length);
+        } catch (e) {
+          debugToShiny('planned', 'render_error', (e && e.message) ? e.message : String(e));
+        }
+      }
+
+      function renderOriginalFromCache(){
+        try {
+          ensureOriginalGantt();
+          window.gantt_original.clearAll();
+          window.gantt_original.parse({ data: window.__gantt_original_tasks_cache || [], links: [] });
+          safeRefreshGantt(window.gantt_original);
+          debugToShiny('original', 'render_ok', 'tasks=' + (window.__gantt_original_tasks_cache || []).length);
+        } catch (e) {
+          debugToShiny('original', 'render_error', (e && e.message) ? e.message : String(e));
+        }
+      }
+
+      function refreshVisibleGantt(){
+        if (window.__gantt_inited && isVisible(document.getElementById('gantt_here'))) {
+          safeRefreshGantt(gantt);
+        }
+        if (window.__gantt_original_inited && isVisible(document.getElementById('gantt_original_here'))) {
+          safeRefreshGantt(window.gantt_original);
+        }
       }
 
       Shiny.addCustomMessageHandler('gantt_data', function(payload){
-        initOrUpdateGantt(payload.tasks || []);
+        window.__gantt_tasks_cache = mapTaskColors(payload.tasks || []);
+        debugToShiny('planned', 'payload_received', 'tasks=' + window.__gantt_tasks_cache.length);
+        renderPlannedFromCache();
       });
-      
+
+      Shiny.addCustomMessageHandler('gantt_original_data', function(payload){
+        window.__gantt_original_tasks_cache = mapTaskColors(payload.tasks || []);
+        debugToShiny('original', 'payload_received', 'tasks=' + window.__gantt_original_tasks_cache.length);
+        renderOriginalFromCache();
+      });
+
+      document.addEventListener('shown.bs.tab', function(){
+        setTimeout(function(){
+          refreshVisibleGantt();
+        }, 0);
+      });
+
+      window.addEventListener('resize', function(){
+        refreshVisibleGantt();
+      });
       // ✅ Botón: Reorganizar (snapshot -> Shiny)
       document.addEventListener('click', function(ev){
         if (ev.target && ev.target.id === 'btn_pack') {
@@ -225,6 +317,9 @@ ui <- fluidPage(
                     selected = "Gantt",
                     tabPanel("Gantt",
                              div(id="gantt_here", class="gantt-portal")
+                    ),
+                    tabPanel("Gantt original",
+                             div(id="gantt_original_here", class="gantt-portal")
                     ),
                     tabPanel("Disponibilidad",
                              div(class="microcopy",
